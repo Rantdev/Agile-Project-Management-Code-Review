@@ -1,0 +1,413 @@
+
+## 2. Architecture Documentation - docs/architecture.md
+
+```markdown
+# System Architecture Documentation
+
+## Overview
+
+AgileFlow is a full-stack web application for agile project management with a focus on team collaboration, task tracking, and performance analytics.
+
+### Architecture Diagram
+┌─────────────────────────────────────────────────────────────────────┐
+│ Client (React) │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ │
+│ │ Login │ │Dashboard│ │Projects │ │ Chat │ │ Profile │ │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ │
+│ │ │
+│ ┌─────────▼─────────┐ │
+│ │ Axios HTTP │ │
+│ │ API Calls │ │
+│ └─────────┬─────────┘ │
+└──────────────────────────────┼──────────────────────────────────────┘
+│
+◄──────┼──────►
+│
+┌──────────────────────────────┼──────────────────────────────────────┐
+│ ┌─────────▼─────────┐ │
+│ │ Express Server │ │
+│ │ (Node.js) │ │
+│ └─────────┬─────────┘ │
+│ │ │
+│ ┌────────────────────┼────────────────────┐ │
+│ ▼ ▼ ▼ │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
+│ │ Middleware │ │ Controllers │ │ Routes │ │
+│ │ - Auth │─────▶│ - Business │◀─────│ - API │ │
+│ │ - CORS │ │ Logic │ │ Endpoints │ │
+│ │ - Error │ └─────────────┘ └─────────────┘ │
+│ └─────────────┘ │ │
+│ ▼ │
+│ ┌─────────────┐ │
+│ │ SQLite │ │
+│ │ Database │ │
+│ └─────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+
+## Technology Stack
+
+### Frontend Layer
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| UI Framework | React 18 | Component-based UI |
+| Routing | React Router DOM | Client-side routing |
+| State Management | Context API | Global auth state |
+| HTTP Client | Axios | API communication |
+| Styling | Tailwind CSS | Utility-first styling |
+| Build Tool | Vite | Fast development builds |
+
+### Backend Layer
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| Runtime | Node.js | JavaScript runtime |
+| Framework | Express.js | Web server & routing |
+| Authentication | JWT + bcrypt | Secure auth |
+| Database | SQLite3 | Lightweight DB |
+| Email | Nodemailer | Email notifications |
+| Scheduling | node-cron | Background jobs |
+
+## Request Flow
+
+### 1. Authentication Flow
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│ Client │────▶│ Server │────▶│ Database │────▶│ Response │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
+│ │ │ │
+│ POST /login │ │ │
+│───────────────▶│ │ │
+│ │ SELECT user │ │
+│ │───────────────▶│ │
+│ │ │ │
+│ │ user data │ │
+│ │◀───────────────│ │
+│ │ │ │
+│ │ Verify password│ │
+│ │ Generate JWT │ │
+│ │ │ │
+│ JWT token │ │ │
+│◀───────────────│ │ │
+│ │ │ │
+
+text
+
+### 2. API Request Flow with Authentication
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│ Client │────▶│ Auth │────▶│ API │────▶│ Database │
+│ │ │ Middleware│ │ Route │ │ │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
+│ │ │ │
+│ GET /projects │ │ │
+│ Bearer token │ │ │
+│───────────────▶│ │ │
+│ │ │ │
+│ │ Verify JWT │ │
+│ │─────────────┐ │ │
+│ │ │ │ │
+│ │◀────────────┘ │ │
+│ │ │ │
+│ │ Valid token │ │
+│ │────────────────▶ │
+│ │ │ │
+│ │ │ SELECT projects│
+│ │ │───────────────▶│
+│ │ │ │
+│ │ │ project data │
+│ │ │◀───────────────│
+│ │ │ │
+│ │ Response │ │
+│ │◀───────────────│ │
+│ Projects │ │ │
+│◀───────────────│ │ │
+
+## Database Schema Design
+
+### Entity Relationship Diagram
+┌─────────────┐
+│ users │
+├─────────────┤
+│ id (PK) │
+│ name │
+│ email (UK) │
+│ password │
+│ role │
+│ ... │
+└──────┬──────┘
+│
+│ 1
+│
+│ has many
+│
+▼
+┌─────────────┐
+│ projects │
+├─────────────┤
+│ id (PK) │
+│ title │
+│ description │
+│ status │
+│ created_by │────────┐
+│ ... │ │
+└──────┬──────┘ │
+│ │
+│ 1 │
+│ │
+│ has many │
+│ │
+▼ ▼
+┌─────────────┐
+│ stories │
+├─────────────┤
+│ id (PK) │
+│ project_id (FK)─┐
+│ title │ │
+│ description │ │
+│ status │ │
+│ created_by │ │
+└──────┬──────┘ │
+│ │
+│ 1 │
+│ │
+│ has many │
+│ │
+▼ │
+┌─────────────┐ │
+│ tasks │ │
+├─────────────┤ │
+│ id (PK) │ │
+│ story_id (FK) │
+│ title │ │
+│ assignee │ │
+│ deadline │ │
+│ status │ │
+└─────────────┘ │
+│
+┌─────────────┐ │
+│team_members │ │
+├─────────────┤ │
+│ id (PK) │ │
+│ project_id (FK)─┘
+│ user_email │
+│ role │
+└─────────────┘
+
+## Security Architecture
+
+### Authentication Flow
+┌─────────────────────────────────────────────────────────────┐
+│ Authentication Flow │
+├─────────────────────────────────────────────────────────────┤
+│ │
+│ 1. User submits credentials │
+│ ↓ │
+│ 2. Server validates credentials │
+│ ↓ │
+│ 3. bcrypt compares password hash │
+│ ↓ │
+│ 4. JWT token generated (expires in 7 days) │
+│ ↓ │
+│ 5. Token stored in localStorage (client) │
+│ ↓ │
+│ 6. Token sent in Authorization header for subsequent │
+│ API requests │
+│ ↓ │
+│ 7. Middleware verifies token before processing requests │
+│ │
+└─────────────────────────────────────────────────────────────┘
+
+### Security Layers
+┌─────────────────────────────────────────────────────────────┐
+│ Security Layers │
+├─────────────────────────────────────────────────────────────┤
+│ │
+│ Layer 1: Transport (HTTPS in production) │
+│ Layer 2: JWT Authentication │
+│ Layer 3: Role-based Authorization │
+│ Layer 4: Input Validation │
+│ Layer 5: SQL Injection Prevention │
+│ Layer 6: XSS Protection │
+│ Layer 7: CORS Configuration │
+│ Layer 8: Rate Limiting │
+│ Layer 9: Password Hashing (bcrypt) │
+│ │
+└─────────────────────────────────────────────────────────────┘
+
+## Data Flow Patterns
+
+### 1. Client-Server Communication
+Client Server Database
+│ │ │
+│ HTTP Request │ │
+│ (JSON + Token) │ │
+│───────────────────────▶│ │
+│ │ │
+│ │ SQL Query │
+│ │──────────────────────────▶│
+│ │ │
+│ │ Query Result │
+│ │◀──────────────────────────│
+│ │ │
+│ HTTP Response │ │
+│ (JSON) │ │
+│◀───────────────────────│ │
+
+### 2. Real-time Chat Flow (Polling)
+Client Server Database
+│ │ │
+│ GET /chat/:id │ │
+│ (every 5 seconds) │ │
+│───────────────────────▶│ │
+│ │ │
+│ │ SELECT messages │
+│ │──────────────────────────▶│
+│ │ │
+│ │ messages │
+│ │◀──────────────────────────│
+│ │ │
+│ New messages │ │
+│◀───────────────────────│ │
+│ │ │
+│ (wait 5 seconds) │ │
+│ │ │
+│ Repeat... │ │
+
+## Error Handling Strategy
+
+### Error Types and Responses
+
+| Error Type | HTTP Code | Client Action |
+|------------|-----------|----------------|
+| Validation Error | 400 | Show validation messages |
+| Unauthorized | 401 | Redirect to login |
+| Forbidden | 403 | Show permission error |
+| Not Found | 404 | Show not found message |
+| Rate Limit | 429 | Show wait message |
+| Server Error | 500 | Show generic error |
+
+### Error Response Format
+
+```json
+{
+  "success": false,
+  "error": "Human-readable error message",
+  "stack": "Stack trace (development only)"
+}
+Performance Considerations
+Optimization Strategies
+Database Indexing
+
+Indexed foreign key columns
+
+Indexed frequently queried fields (email, status)
+
+Query Optimization
+
+Use SELECT only needed columns
+
+Implement pagination for large datasets
+
+Use JOIN instead of multiple queries
+
+Frontend Optimization
+
+Lazy loading for routes
+
+Component memoization
+
+Debounced search inputs
+
+Caching Strategy
+
+No current caching implementation
+
+Future: Redis for session storage
+
+Deployment Architecture
+Development Environment
+┌─────────────────────────────────────────────────────────────┐
+│                    Development Setup                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐     ┌─────────────┐                        │
+│  │   Client    │     │   Server    │                        │
+│  │  :5173      │────▶│   :5000     │                        │
+│  └─────────────┘     └──────┬──────┘                        │
+│                             │                                │
+│                      ┌──────▼──────┐                        │
+│                      │  SQLite DB  │                        │
+│                      │  /database  │                        │
+│                      └─────────────┘                        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+Production Architecture (Proposed)
+┌─────────────────────────────────────────────────────────────┐
+│                    Production Setup                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐                                           │
+│  │   CDN       │───┐                                       │
+│  │   (Static)  │   │                                       │
+│  └─────────────┘   │                                       │
+│                    ▼                                       │
+│  ┌─────────────┐ ┌─────────────┐     ┌─────────────┐       │
+│  │   Client    │▶│   Load      │────▶│   Server    │       │
+│  │   (React)   │ │   Balancer  │     │   Cluster   │       │
+│  └─────────────┘ └─────────────┘     └──────┬──────┘       │
+│                                              │               │
+│                                      ┌───────▼───────┐       │
+│                                      │   Database   │       │
+│                                      │   (SQLite/   │       │
+│                                      │   PostgreSQL)│       │
+│                                      └───────────────┘       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+Scalability Considerations
+Current Limitations
+SQLite not suitable for high concurrency
+
+No caching layer
+
+Single server instance
+
+Scaling Strategies
+Vertical Scaling: Upgrade server resources
+
+Horizontal Scaling: Add multiple instances
+
+Database Migration: Move to PostgreSQL
+
+Add Redis: For session management
+
+Implement CDN: For static assets
+
+Monitoring & Logging
+Log Levels
+ERROR: Critical issues requiring attention
+
+WARN: Potential issues
+
+INFO: Important operations
+
+DEBUG: Detailed information (development only)
+
+Key Metrics to Monitor
+Request response time
+
+Error rate
+
+Database query time
+
+Active user count
+
+API usage patterns
+
+Future Architecture Improvements
+Microservices: Split into auth, projects, chat services
+
+WebSockets: Real-time notifications
+
+Message Queue: For email sending
+
+Read Replicas: For analytics queries
+
+Elasticsearch: For search functionality
+Kubernetes: Container orchestration
