@@ -2,7 +2,7 @@ const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
 
-// Use Railway volume path if available
+// Use Render's writable directory for production, or local path for development
 const dbPath = process.env.DB_PATH || path.join(__dirname, "../../database/agile.db");
 
 // Ensure directory exists
