@@ -109,41 +109,69 @@ exports.checkNeedsOTP = (req, res) => {
   res.json({ success: true, needsOTP: false, isVerified: true });
 };
 
-// Google Login (simplified)
+// Google Login
 exports.googleLogin = async (req, res) => {
   const { token } = req.body;
 
+  console.log("📝 Google login attempt");
+
   if (!token) {
-    return res.status(400).json({ success: false, error: "Google token is required" });
+    return res.status(400).json({ 
+      success: false, 
+      error: "Google token is required" 
+    });
   }
 
   try {
-    const response = await fetch(https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=);
+    // CORRECTED: Added template literals and ${token}
+    const response = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${token}`);
     const payload = await response.json();
 
     if (payload.error) {
-      return res.status(401).json({ success: false, error: "Invalid Google token" });
+      return res.status(401).json({ 
+        success: false, 
+        error: "Invalid Google token" 
+      });
     }
 
     const { email, name } = payload;
 
-    let user = db.prepare("SELECT * FROM users WHERE email = ?").get(email.toLowerCase());
+    // Check if user exists
+    const user = await new Promise((resolve, reject) => {
+      db.get("SELECT * FROM users WHERE email = ?", [email.toLowerCase()], (err, row) => {
+        if (err) reject(err);
+        resolve(row);
+      });
+    });
 
     if (!user) {
+      // Create new user
       const randomPassword = Math.random().toString(36).slice(-16);
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
-      const result = db.prepare(
-        "INSERT INTO users (name, email, password, is_verified) VALUES (?, ?, ?, 1)"
-      ).run(name || email.split('@')[0], email.toLowerCase(), hashedPassword);
+      const result = await new Promise((resolve, reject) => {
+        db.run(
+          "INSERT INTO users (name, email, password, is_verified) VALUES (?, ?, ?, 1)",
+          [name || email.split('@')[0], email.toLowerCase(), hashedPassword],
+          function(err) {
+            if (err) reject(err);
+            resolve(this.lastID);
+          }
+        );
+      });
 
-      const jwtToken = generateToken(result.lastInsertRowid, email);
+      const jwtToken = generateToken(result, email);
       
       return res.json({
         success: true,
         message: "Google login successful",
         token: jwtToken,
-        user: { id: result.lastInsertRowid, name: name || email.split('@')[0], email: email.toLowerCase() }
+        user: { 
+          id: result, 
+          name: name || email.split('@')[0], 
+          email: email.toLowerCase(),
+          isVerified: true
+        }
       });
     } else {
       const jwtToken = generateToken(user.id, user.email);
@@ -157,10 +185,13 @@ exports.googleLogin = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(401).json({ success: false, error: "Invalid Google token" });
+    console.error("Google verification error:", error);
+    res.status(401).json({ 
+      success: false, 
+      error: "Invalid Google token. Please try again." 
+    });
   }
 };
-
 // Check role setup
 exports.checkRoleSetup = (req, res) => {
   const user = db.prepare("SELECT role FROM users WHERE id = ?").get(req.user.id);
