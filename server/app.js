@@ -6,16 +6,17 @@ const initDB = require("./models/initDB");
 // Import routes
 const authRoutes = require("./routes/authRoutes");
 const projectRoutes = require("./routes/projectRoutes");
+const storyRoutes = require("./routes/storyRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const performanceRoutes = require("./routes/performanceRoutes");
 
 const app = express();
 
-// Initialize database (CALL the function)
+// Initialize database
 initDB();
 
-// CORS - Allow all origins for deployment
+// CORS
 app.use(cors({
   origin: true,
   credentials: true,
@@ -30,6 +31,7 @@ app.use(express.urlencoded({ extended: true }));
 // Register all routes
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/stories", storyRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/performance", performanceRoutes);
@@ -48,6 +50,7 @@ app.get("/", (req, res) => {
       health: "/health",
       auth: "/api/auth",
       projects: "/api/projects",
+      stories: "/api/stories",
       tasks: "/api/tasks",
       profile: "/api/profile",
       performance: "/api/performance"
