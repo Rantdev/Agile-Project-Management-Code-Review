@@ -11,6 +11,7 @@ const teamRoutes = require("./routes/teamRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const performanceRoutes = require("./routes/performanceRoutes");
+const otpRoutes = require("./routes/otpRoutes");  // ADD THIS
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/team", teamRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/performance", performanceRoutes);
+app.use("/api/otp", otpRoutes);  // ADD THIS
 
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
@@ -41,28 +43,8 @@ app.get("/health", (req, res) => {
 app.get("/", (req, res) => {
   res.json({ 
     message: "AgileFlow API is running",
-    version: "1.0.0",
-    endpoints: {
-      health: "/health",
-      auth: "/api/auth",
-      projects: "/api/projects",
-      stories: "/api/stories",
-      tasks: "/api/tasks",
-      team: "/api/team",
-      chat: "/api/chat",
-      profile: "/api/profile",
-      performance: "/api/performance"
-    }
+    version: "1.0.0"
   });
-});
-
-app.use((err, req, res, next) => {
-  console.error("❌ Error:", err.message);
-  res.status(500).json({ success: false, error: err.message });
-});
-
-app.use((req, res) => {
-  res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.url}` });
 });
 
 module.exports = app;

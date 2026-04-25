@@ -84,6 +84,17 @@ const initDB = () => {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+    // Add this to your initDB function
+db.exec(`
+  CREATE TABLE IF NOT EXISTS otp_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    otp_code TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    is_used INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
     // User skills table
     db.exec(`
