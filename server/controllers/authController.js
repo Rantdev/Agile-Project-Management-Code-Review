@@ -165,12 +165,16 @@ exports.googleLogin = async (req, res) => {
 };
 
 // Check if user needs role setup
+// Check if user needs role setup
 exports.checkRoleSetup = (req, res) => {
   try {
     const user = db.prepare("SELECT role FROM users WHERE id = ?").get(req.user.id);
-    res.json({ success: true, needsRoleSetup: !user || !user.role || user.role === 'member' });
+    // User needs role setup if they have no role or role is 'member'
+    const needsRoleSetup = !user || !user.role || user.role === 'member';
+    res.json({ success: true, needsRoleSetup });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Role check error:", error);
+    res.json({ success: true, needsRoleSetup: true });
   }
 };
 

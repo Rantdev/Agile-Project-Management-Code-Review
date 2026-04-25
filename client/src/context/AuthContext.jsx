@@ -36,6 +36,33 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, []);
+  const googleLogin = async (credential) => {
+  try {
+    const res = await api.post("/auth/google", { token: credential });
+    
+    if (res.data.success) {
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      setUser(res.data.user);
+      api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+      
+      toast.success("Google login successful!");
+      
+      // Check if role setup is needed
+      const roleCheck = await api.get("/auth/check-role-setup");
+      
+      if (roleCheck.data.needsRoleSetup) {
+        return { success: true, needsRoleSetup: true };
+      }
+      return { success: true, needsRoleSetup: false };
+    }
+    return { success: false };
+  } catch (error) {
+    console.error("Google login error:", error);
+    toast.error("Google login failed");
+    return { success: false };
+  }
+};
 
   const verifyToken = async () => {
     try {

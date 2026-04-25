@@ -16,6 +16,7 @@ import Performance from "./pages/Performance";
 import Profile from "./pages/Profile";
 import RoleSetup from "./pages/RoleSetup";
 
+
 function App() {
   return (
     <AuthProvider>
@@ -35,14 +36,11 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/role-setup"
-          element={
-            <ProtectedRoute>
-              <RoleSetup />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/role-setup" element={
+  <ProtectedRoute>
+    <RoleSetup />
+  </ProtectedRoute>
+} />
         <Route
           path="/projects"
           element={

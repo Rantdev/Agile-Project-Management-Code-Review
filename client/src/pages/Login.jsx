@@ -43,41 +43,58 @@ const Login = () => {
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    console.log("Google Success:", credentialResponse);
+  console.log("Google Success:", credentialResponse);
+  
+  setLoading(true);
+  try {
+    // Send the Google credential token to backend
+    const res = await api.post("/auth/google", {
+      token: credentialResponse.credential
+    });
     
-    try {
-      setLoading(true);
+    console.log("Backend response:", res.data);
+    
+    if (res.data.success) {
+      // Store token and user data
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      localStorage.setItem("userId", res.data.user.id);
       
-      // Send the Google credential token to backend
-      const res = await api.post("/auth/google", {
-        token: credentialResponse.credential
-      });
+      // Set default auth header for future requests
+      api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       
-      console.log("Backend response:", res.data);
+      toast.success("Google login successful!");
       
-      if (res.data.success) {
-        // Store token and user data
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
-        localStorage.setItem("userId", res.data.user.id);
+      // Check if user needs role setup
+      try {
+        const roleCheck = await api.get("/auth/check-role-setup", {
+          headers: { Authorization: `Bearer ${res.data.token}` }
+        });
         
-        toast.success("Google login successful!");
+        console.log("Role check response:", roleCheck.data);
         
-        // Force a small delay before redirect
-        setTimeout(() => {
+        if (roleCheck.data.needsRoleSetup) {
+          // Redirect to role setup page
+          navigate("/role-setup");
+        } else {
+          // Redirect to dashboard
           navigate("/dashboard");
-          window.location.reload(); // Force reload to ensure auth state updates
-        }, 500);
-      } else {
-        toast.error(res.data.error || "Google login failed");
+        }
+      } catch (roleError) {
+        console.error("Role check failed:", roleError);
+        // If role check fails, still try to go to dashboard
+        navigate("/dashboard");
       }
-    } catch (error) {
-      console.error("Google login error:", error);
-      toast.error(error.response?.data?.error || "Google login failed. Please try again.");
-    } finally {
-      setLoading(false);
+    } else {
+      toast.error(res.data.error || "Google login failed");
     }
-  };
+  } catch (error) {
+    console.error("Google login error:", error);
+    toast.error(error.response?.data?.error || "Google login failed. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleGoogleError = () => {
     console.log("Google Login Failed");
