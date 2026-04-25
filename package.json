@@ -1,7 +1,11 @@
-{
-  "devDependencies": {
-    "autoprefixer": "^10.5.0",
-    "postcss": "^8.5.10",
-    "tailwindcss": "^4.2.4"
+﻿{
+  "name": "agile-project-management",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "cd server && npm install && node server.js",
+    "postinstall": "cd server && npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
