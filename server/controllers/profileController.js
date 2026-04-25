@@ -1,473 +1,240 @@
 const db = require("../config/db");
 
-// Helper function to update skills
-const updateSkills = (userId, skills, res) => {
-  // Delete existing skills
-  db.run("DELETE FROM user_skills WHERE user_id = ?", [userId], (err) => {
-    if (err) {
-      console.error("❌ Error deleting skills:", err.message);
-      return res.status(500).json({ success: false, error: err.message });
-    }
+// @desc    Create project
+exports.createProject = (req, res) => {
+  const { title, description, status } = req.body;
+  const created_by = req.user.id;
 
-    // Insert new skills
-    if (skills && skills.length > 0) {
-      const stmt = db.prepare("INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)");
-      
-      skills.forEach(skill => {
-        stmt.run([userId, skill.name, skill.level || 'Intermediate']);
-      });
-      
-      stmt.finalize();
-    }
+  console.log("📝 Creating project for user:", created_by);
+  console.log("📝 Project data:", { title, description, status });
 
-    console.log("✅ Skills updated successfully");
-    if (res) {
-      res.json({ success: true, message: "Profile updated successfully" });
-    }
-  });
-};
-
-// @desc    Get user profile
-// @route   GET /api/profile/:userId
-exports.getProfile = (req, res) => {
-  const { userId } = req.params;
-  const currentUserId = req.user.id;
-
-  console.log(`📝 Fetching profile for user ID: ${userId}, Current user: ${currentUserId}`);
-
-  // Allow viewing own profile only
-  if (parseInt(currentUserId) !== parseInt(userId)) {
-    return res.status(403).json({ 
-      success: false, 
-      error: "You can only view your own profile" 
-    });
-  }
-
-  // Get all columns safely with COALESCE for null values
-  const query = `
-    SELECT 
-      u.id, 
-      u.name, 
-      u.email, 
-      COALESCE(u.bio, '') as bio,
-      COALESCE(u.avatar, '') as avatar,
-      COALESCE(u.department, '') as department,
-      COALESCE(u.phone, '') as phone,
-      COALESCE(u.location, '') as location,
-      COALESCE(u.github, '') as github,
-      COALESCE(u.linkedin, '') as linkedin,
-      COALESCE(u.role, 'member') as role,
-      u.created_at,
-      u.updated_at
-    FROM users u
-    WHERE u.id = ?
-  `;
-
-  db.get(query, [userId], (err, profile) => {
-    if (err) {
-      console.error("❌ Database error:", err.message);
-      return res.status(500).json({ success: false, error: err.message });
-    }
-    
-    if (!profile) {
-      console.log("❌ User not found:", userId);
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    // Get user skills
-    db.all(
-      "SELECT id, skill_name as name, skill_level as level FROM user_skills WHERE user_id = ? ORDER BY created_at DESC",
-      [userId], 
-      (err, skills) => {
-        if (err) {
-          console.error("❌ Skills fetch error:", err.message);
-          return res.status(500).json({ success: false, error: err.message });
-        }
-        
-        profile.skills = skills || [];
-        console.log(`✅ Profile found: ${profile.name} with ${profile.skills.length} skills`);
-        res.json({ success: true, profile });
-      }
-    );
-  });
-};
-
-// @desc    Update user profile
-// @route   PUT /api/profile/:userId
-exports.updateProfile = (req, res) => {
-  const { userId } = req.params;
-  const { name, bio, department, phone, location, github, linkedin, skills } = req.body;
-  const currentUserId = req.user.id;
-
-  console.log(`📝 Updating profile for user: ${userId}`);
-
-  // Check permission
-  if (parseInt(currentUserId) !== parseInt(userId)) {
-    return res.status(403).json({ 
-      success: false, 
-      error: "You can only update your own profile" 
-    });
-  }
-
-  // Build dynamic update query
-  const updateFields = [];
-  const updateValues = [];
-
-  if (name !== undefined && name !== null) {
-    updateFields.push("name = ?");
-    updateValues.push(name);
-  }
-  if (bio !== undefined && bio !== null) {
-    updateFields.push("bio = ?");
-    updateValues.push(bio);
-  }
-  if (department !== undefined && department !== null) {
-    updateFields.push("department = ?");
-    updateValues.push(department);
-  }
-  if (phone !== undefined && phone !== null) {
-    updateFields.push("phone = ?");
-    updateValues.push(phone);
-  }
-  if (location !== undefined && location !== null) {
-    updateFields.push("location = ?");
-    updateValues.push(location);
-  }
-  if (github !== undefined && github !== null) {
-    updateFields.push("github = ?");
-    updateValues.push(github);
-  }
-  if (linkedin !== undefined && linkedin !== null) {
-    updateFields.push("linkedin = ?");
-    updateValues.push(linkedin);
-  }
-
-  if (updateFields.length === 0 && (!skills || skills.length === 0)) {
-    return res.json({ success: true, message: "No changes made" });
-  }
-
-  // Update profile fields if any
-  if (updateFields.length > 0) {
-    updateFields.push("updated_at = CURRENT_TIMESTAMP");
-    updateValues.push(userId);
-
-    const updateQuery = `UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`;
-
-    db.run(updateQuery, updateValues, function(err) {
-      if (err) {
-        console.error("❌ Database error:", err.message);
-        return res.status(500).json({ success: false, error: err.message });
-      }
-
-      // Update skills if provided
-      if (skills && Array.isArray(skills)) {
-        updateSkills(userId, skills, res);
-      } else {
-        console.log("✅ Profile updated successfully");
-        res.json({ success: true, message: "Profile updated successfully" });
-      }
-    });
-  } else {
-    // Only update skills
-    if (skills && Array.isArray(skills)) {
-      updateSkills(userId, skills, res);
-    } else {
-      res.json({ success: true, message: "No changes made" });
-    }
-  }
-};
-
-// @desc    Upload avatar
-// @route   POST /api/profile/avatar
-exports.uploadAvatar = (req, res) => {
-  const { avatarUrl } = req.body;
-  const userId = req.user.id;
-
-  console.log(`📝 Uploading avatar for user: ${userId}`);
-
-  if (!avatarUrl) {
+  if (!title || title.trim() === "") {
     return res.status(400).json({ 
       success: false, 
-      error: "Avatar URL is required" 
+      error: "Project title is required" 
     });
   }
 
-  db.run("UPDATE users SET avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", 
-    [avatarUrl, userId], 
-    function(err) {
-      if (err) {
-        console.error("❌ Database error:", err.message);
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      
-      console.log("✅ Avatar updated successfully");
-      res.json({ success: true, avatar: avatarUrl, message: "Avatar updated successfully" });
-    }
-  );
-};
-
-// @desc    Setup user role (called during registration)
-// @route   POST /api/profile/setup-role
-exports.setupUserRole = (req, res) => {
-  const { role, department, skills } = req.body;
-  const userId = req.user.id;
-
-  console.log(`📝 Setting up role for user: ${userId}, Role: ${role}`);
-
-  const validRoles = ['UI Developer', 'Frontend Developer', 'Backend Developer', 
-                      'Full Stack Developer', 'Tester', 'DevOps', 'Product Owner', 
-                      'Scrum Master', 'Designer', 'Project Manager'];
-
-  if (!validRoles.includes(role)) {
-    return res.status(400).json({ 
-      success: false, 
-      error: "Invalid role selected. Please choose a valid role." 
-    });
-  }
-
-  // Update user role and department
   db.run(
-    "UPDATE users SET role = ?, department = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-    [role, department || null, userId],
-    function(err) {
+    "INSERT INTO projects (title, description, status, created_by) VALUES (?, ?, ?, ?)",
+    [title.trim(), description || "", status || "Planning", created_by],
+    function (err) {
       if (err) {
         console.error("❌ Database error:", err.message);
-        return res.status(500).json({ success: false, error: err.message });
-      }
-
-      // Add skills if provided
-      if (skills && Array.isArray(skills) && skills.length > 0) {
-        const stmt = db.prepare("INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)");
-        
-        skills.forEach(skill => {
-          stmt.run([userId, skill.name, skill.level || 'Intermediate']);
+        return res.status(500).json({ 
+          success: false, 
+          error: err.message 
         });
-        
-        stmt.finalize();
       }
 
-      console.log("✅ Role setup completed successfully");
-      res.json({ 
-        success: true, 
-        message: "Role setup completed successfully",
-        user: { role, department }
-      });
-    }
-  );
-};
+      const projectId = this.lastID;
+      console.log("✅ Project created with ID:", projectId);
 
-// @desc    Add a single skill to user
-// @route   POST /api/profile/:userId/skills
-exports.addSkill = (req, res) => {
-  const { userId } = req.params;
-  const { skillName, skillLevel } = req.body;
-  const currentUserId = req.user.id;
-
-  console.log(`📝 Adding skill for user: ${userId}`);
-
-  if (parseInt(currentUserId) !== parseInt(userId)) {
-    return res.status(403).json({ 
-      success: false, 
-      error: "You can only add skills to your own profile" 
-    });
-  }
-
-  if (!skillName || !skillName.trim()) {
-    return res.status(400).json({ 
-      success: false, 
-      error: "Skill name is required" 
-    });
-  }
-
-  db.run(
-    "INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)",
-    [userId, skillName.trim(), skillLevel || 'Intermediate'],
-    function(err) {
-      if (err) {
-        console.error("❌ Database error:", err.message);
-        return res.status(500).json({ success: false, error: err.message });
-      }
-
-      console.log("✅ Skill added successfully");
       res.status(201).json({
         success: true,
-        message: "Skill added successfully",
-        skill: {
-          id: this.lastID,
-          name: skillName,
-          level: skillLevel || 'Intermediate'
+        message: "Project created successfully",
+        project: { 
+          id: projectId, 
+          title, 
+          description, 
+          status: status || "Planning", 
+          created_by 
         }
       });
     }
   );
 };
 
-// @desc    Remove a skill from user
-// @route   DELETE /api/profile/:userId/skills/:skillId
-exports.removeSkill = (req, res) => {
-  const { userId, skillId } = req.params;
-  const currentUserId = req.user.id;
+// @desc    Get all projects for user
+exports.getProjects = (req, res) => {
+  const userId = req.user.id;
+  const userEmail = req.user.email;
 
-  console.log(`📝 Removing skill ${skillId} for user: ${userId}`);
+  console.log("📋 Fetching projects for user:", userId, userEmail);
 
-  if (parseInt(currentUserId) !== parseInt(userId)) {
-    return res.status(403).json({ 
-      success: false, 
-      error: "You can only remove skills from your own profile" 
+  const query = `
+    SELECT DISTINCT 
+      p.id,
+      p.title,
+      p.description,
+      p.status,
+      p.created_by,
+      p.created_at,
+      CASE 
+        WHEN p.created_by = ? THEN 'owner' 
+        ELSE 'member' 
+      END as role
+    FROM projects p
+    LEFT JOIN team_members tm ON p.id = tm.project_id
+    WHERE p.created_by = ? OR tm.user_email = ?
+    ORDER BY p.created_at DESC
+  `;
+
+  db.all(query, [userId, userId, userEmail], (err, rows) => {
+    if (err) {
+      console.error("❌ Database error:", err.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: err.message 
+      });
+    }
+    
+    console.log(`✅ Found ${rows?.length || 0} projects`);
+    res.json({ 
+      success: true, 
+      projects: rows || [] 
     });
-  }
+  });
+};
 
-  db.run(
-    "DELETE FROM user_skills WHERE id = ? AND user_id = ?",
-    [skillId, userId],
-    function(err) {
+// @desc    Get single project
+exports.getProjectById = (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+  const userEmail = req.user.email;
+
+  console.log("📋 Fetching project details for ID:", id);
+
+  const query = `
+    SELECT p.*,
+      (SELECT COUNT(*) FROM stories WHERE project_id = p.id) as story_count,
+      (SELECT COUNT(*) FROM team_members WHERE project_id = p.id) as team_count
+    FROM projects p
+    WHERE p.id = ? AND (p.created_by = ? OR EXISTS (
+      SELECT 1 FROM team_members WHERE project_id = p.id AND user_email = ?
+    ))
+  `;
+
+  db.get(query, [id, userId, userEmail], (err, project) => {
+    if (err) {
+      console.error("❌ Database error:", err.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: err.message 
+      });
+    }
+    
+    if (!project) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Project not found or you don't have access" 
+      });
+    }
+    
+    console.log("✅ Project found:", project.title);
+    res.json({ success: true, project });
+  });
+};
+
+// @desc    Update project
+exports.updateProject = (req, res) => {
+  const { id } = req.params;
+  const { title, description, status } = req.body;
+  const userId = req.user.id;
+
+  console.log("✏️ Updating project ID:", id);
+
+  db.get(
+    "SELECT created_by FROM projects WHERE id = ?",
+    [id],
+    (err, project) => {
       if (err) {
         console.error("❌ Database error:", err.message);
-        return res.status(500).json({ success: false, error: err.message });
+        return res.status(500).json({ 
+          success: false, 
+          error: err.message 
+        });
       }
-
-      if (this.changes === 0) {
+      
+      if (!project) {
         return res.status(404).json({ 
           success: false, 
-          error: "Skill not found" 
+          error: "Project not found" 
+        });
+      }
+      
+      if (project.created_by !== userId) {
+        return res.status(403).json({ 
+          success: false, 
+          error: "You don't have permission to update this project" 
         });
       }
 
-      console.log("✅ Skill removed successfully");
-      res.json({
-        success: true,
-        message: "Skill removed successfully"
-      });
+      db.run(
+        `UPDATE projects 
+         SET title = COALESCE(?, title), 
+             description = COALESCE(?, description), 
+             status = COALESCE(?, status)
+         WHERE id = ?`,
+        [title, description, status, id],
+        function (err) {
+          if (err) {
+            console.error("❌ Database error:", err.message);
+            return res.status(500).json({ 
+              success: false, 
+              error: err.message 
+            });
+          }
+          
+          console.log("✅ Project updated successfully");
+          res.json({ 
+            success: true, 
+            message: "Project updated successfully" 
+          });
+        }
+      );
     }
   );
 };
 
-// @desc    Update a skill
-// @route   PUT /api/profile/:userId/skills/:skillId
-exports.updateSkill = (req, res) => {
-  const { userId, skillId } = req.params;
-  const { skillName, skillLevel } = req.body;
-  const currentUserId = req.user.id;
+// @desc    Delete project
+exports.deleteProject = (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
 
-  console.log(`📝 Updating skill ${skillId} for user: ${userId}`);
+  console.log("🗑️ Deleting project ID:", id);
 
-  if (parseInt(currentUserId) !== parseInt(userId)) {
-    return res.status(403).json({ 
-      success: false, 
-      error: "You can only update your own skills" 
-    });
-  }
+  db.get(
+    "SELECT created_by FROM projects WHERE id = ?",
+    [id],
+    (err, project) => {
+      if (err) {
+        console.error("❌ Database error:", err.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: err.message 
+        });
+      }
+      
+      if (!project) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Project not found" 
+        });
+      }
+      
+      if (project.created_by !== userId) {
+        return res.status(403).json({ 
+          success: false, 
+          error: "You don't have permission to delete this project" 
+        });
+      }
 
-  const updates = [];
-  const values = [];
-
-  if (skillName && skillName.trim()) {
-    updates.push("skill_name = ?");
-    values.push(skillName.trim());
-  }
-  if (skillLevel) {
-    updates.push("skill_level = ?");
-    values.push(skillLevel);
-  }
-
-  if (updates.length === 0) {
-    return res.status(400).json({ 
-      success: false, 
-      error: "No fields to update" 
-    });
-  }
-
-  values.push(skillId, userId);
-  const query = `UPDATE user_skills SET ${updates.join(", ")} WHERE id = ? AND user_id = ?`;
-
-  db.run(query, values, function(err) {
-    if (err) {
-      console.error("❌ Database error:", err.message);
-      return res.status(500).json({ success: false, error: err.message });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Skill not found" 
+      db.run("DELETE FROM projects WHERE id = ?", [id], function (err) {
+        if (err) {
+          console.error("❌ Database error:", err.message);
+          return res.status(500).json({ 
+            success: false, 
+            error: err.message 
+          });
+        }
+        
+        console.log("✅ Project deleted successfully");
+        res.json({ 
+          success: true, 
+          message: "Project deleted successfully" 
+        });
       });
     }
-
-    console.log("✅ Skill updated successfully");
-    res.json({
-      success: true,
-      message: "Skill updated successfully"
-    });
-  });
-};
-
-// @desc    Get all skills (for autocomplete)
-// @route   GET /api/profile/skills/common
-exports.getCommonSkills = (req, res) => {
-  console.log("📝 Fetching common skills");
-
-  const query = `
-    SELECT skill_name, COUNT(*) as count 
-    FROM user_skills 
-    GROUP BY skill_name 
-    ORDER BY count DESC 
-    LIMIT 50
-  `;
-
-  db.all(query, [], (err, skills) => {
-    if (err) {
-      console.error("❌ Database error:", err.message);
-      return res.status(500).json({ success: false, error: err.message });
-    }
-
-    console.log(`✅ Found ${skills.length} common skills`);
-    res.json({
-      success: true,
-      skills: skills.map(s => s.skill_name)
-    });
-  });
-};
-
-// @desc    Get user statistics
-// @route   GET /api/profile/:userId/stats
-exports.getUserStats = (req, res) => {
-  const { userId } = req.params;
-  const currentUserId = req.user.id;
-
-  if (parseInt(currentUserId) !== parseInt(userId)) {
-    return res.status(403).json({ 
-      success: false, 
-      error: "You can only view your own stats" 
-    });
-  }
-
-  const query = `
-    SELECT 
-      (SELECT COUNT(*) FROM tasks WHERE assignee = (SELECT email FROM users WHERE id = ?)) as total_tasks,
-      (SELECT COUNT(*) FROM tasks WHERE assignee = (SELECT email FROM users WHERE id = ?) AND status = 'Done') as completed_tasks,
-      (SELECT COUNT(*) FROM tasks WHERE assignee = (SELECT email FROM users WHERE id = ?) AND status = 'In Progress') as in_progress_tasks,
-      (SELECT COUNT(*) FROM projects WHERE created_by = ?) as projects_created,
-      (SELECT COUNT(*) FROM team_members WHERE user_email = (SELECT email FROM users WHERE id = ?)) as teams_joined
-  `;
-
-  db.get(query, [userId, userId, userId, userId, userId], (err, stats) => {
-    if (err) {
-      console.error("❌ Database error:", err.message);
-      return res.status(500).json({ success: false, error: err.message });
-    }
-
-    res.json({
-      success: true,
-      stats: {
-        total_tasks: stats?.total_tasks || 0,
-        completed_tasks: stats?.completed_tasks || 0,
-        in_progress_tasks: stats?.in_progress_tasks || 0,
-        completion_rate: stats?.total_tasks > 0 
-          ? Math.round((stats.completed_tasks / stats.total_tasks) * 100) 
-          : 0,
-        projects_created: stats?.projects_created || 0,
-        teams_joined: stats?.teams_joined || 0
-      }
-    });
-  });
+  );
 };

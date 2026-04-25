@@ -1,26 +1,32 @@
 const express = require("express");
 const router = express.Router();
-const {
-  getUserPerformance,
-  getTeamPerformance,
-  getProjectTimeline,
-  getCompanyAnalytics,
-  getUserTaskHistory
-} = require("../controllers/performanceController");
 const { protect } = require("../middleware/auth");
 
-// All routes require authentication
-router.use(protect);
+// Placeholder routes - will be implemented
+router.get("/user/:userId", protect, (req, res) => {
+  res.json({ 
+    success: true, 
+    performance: {
+      total_tasks: 0,
+      completed_tasks: 0,
+      completion_rate: 0,
+      overdue_tasks: 0
+    }
+  });
+});
 
-// User performance routes
-router.get("/user/:userId", getUserPerformance);
-router.get("/user/:userId/history", getUserTaskHistory);
-
-// Team/Project performance routes
-router.get("/team/:projectId", getTeamPerformance);
-router.get("/project/:projectId/timeline", getProjectTimeline);
-
-// Company-wide analytics (Admin/Owner only)
-router.get("/company/analytics", getCompanyAnalytics);
+router.get("/company/analytics", protect, (req, res) => {
+  res.json({ 
+    success: true, 
+    analytics: {
+      total_users: 0,
+      total_projects: 0,
+      total_tasks: 0,
+      completed_tasks: 0,
+      overall_completion_rate: 0,
+      topPerformers: []
+    }
+  });
+});
 
 module.exports = router;
