@@ -1,9 +1,9 @@
 const db = require("../config/db");
 
 const initDB = () => {
-  db.serialize(() => {
-    // Users table
-    db.run(`
+  try {
+    // Create tables using exec() for multiple statements
+    db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -13,11 +13,8 @@ const initDB = () => {
         is_verified INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      );
 
-    // Projects table
-    db.run(`
       CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -27,11 +24,8 @@ const initDB = () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
+      );
 
-    // Stories table
-    db.run(`
       CREATE TABLE IF NOT EXISTS stories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
@@ -41,11 +35,8 @@ const initDB = () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-      )
-    `);
+      );
 
-    // Tasks table
-    db.run(`
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         story_id INTEGER NOT NULL,
@@ -56,11 +47,8 @@ const initDB = () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE
-      )
-    `);
+      );
 
-    // Team members table
-    db.run(`
       CREATE TABLE IF NOT EXISTS team_members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
@@ -69,11 +57,13 @@ const initDB = () => {
         joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
         UNIQUE(project_id, user_email)
-      )
+      );
     `);
 
     console.log("✅ Database tables created successfully");
-  });
+  } catch (err) {
+    console.error("❌ Database initialization error:", err.message);
+  }
 };
 
 module.exports = initDB;
