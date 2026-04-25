@@ -1,14 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/auth");
+const db = require("../config/db");
 
-// Placeholder routes - will be implemented
 router.get("/:userId", protect, (req, res) => {
-  res.json({ success: true, profile: { id: req.params.userId, message: "Profile endpoint" } });
-});
-
-router.put("/:userId", protect, (req, res) => {
-  res.json({ success: true, message: "Profile updated" });
+  const { userId } = req.params;
+  
+  try {
+    const user = db.prepare("SELECT id, name, email, role, created_at FROM users WHERE id = ?").get(userId);
+    res.json({ success: true, profile: user || {} });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 module.exports = router;

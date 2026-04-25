@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/auth");
+const db = require("../config/db");
 
-// Placeholder routes - will be implemented
 router.get("/user/:userId", protect, (req, res) => {
   res.json({ 
     success: true, 
