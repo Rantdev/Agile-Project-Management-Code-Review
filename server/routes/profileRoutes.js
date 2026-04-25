@@ -3,135 +3,111 @@ const router = express.Router();
 const { protect } = require("../middleware/auth");
 const db = require("../config/db");
 
-// Apply authentication to all routes
-router.use(protect);
+// Get user profile
+router.get("/:userId", protect, (req, res) => {
+  const { userId } = req.params;
+  const currentUserId = req.user.id;
 
-// @route   POST /api/projects
-// @desc    Create a new project
-router.post("/", (req, res) => {
-  const { title, description, status } = req.body;
-  const created_by = req.user.id;
+  console.log(`Fetching profile for user: ${userId}, current: ${currentUserId}`);
 
-  if (!title) {
-    return res.status(400).json({ success: false, error: "Project title is required" });
+  // Users can only view their own profile
+  if (parseInt(currentUserId) !== parseInt(userId)) {
+    return res.status(403).json({ success: false, error: "You can only view your own profile" });
   }
 
   try {
-    const stmt = db.prepare(`
-      INSERT INTO projects (title, description, status, created_by) 
-      VALUES (?, ?, ?, ?)
-    `);
-    const result = stmt.run(title, description || "", status || "Planning", created_by);
+    const user = db.prepare(`
+      SELECT id, name, email, role, created_at FROM users WHERE id = ?
+    `).get(userId);
     
-    res.status(201).json({
-      success: true,
-      message: "Project created successfully",
-      project: { 
-        id: result.lastInsertRowid, 
-        title, 
-        description, 
-        status: status || "Planning", 
-        created_by 
-      }
-    });
-  } catch (err) {
-    console.error("Error creating project:", err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// @route   GET /api/projects
-// @desc    Get all projects for the authenticated user
-router.get("/", (req, res) => {
-  const userId = req.user.id;
-
-  try {
-    const projects = db.prepare(`
-      SELECT * FROM projects WHERE created_by = ? ORDER BY created_at DESC
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+    
+    // Get user skills
+    const skills = db.prepare(`
+      SELECT id, skill_name as name, skill_level as level FROM user_skills WHERE user_id = ?
     `).all(userId);
     
-    res.json({ success: true, projects });
+    user.skills = skills || [];
+    
+    console.log(`Profile found: ${user.name}`);
+    res.json({ success: true, profile: user });
   } catch (err) {
-    console.error("Error fetching projects:", err.message);
+    console.error("Profile error:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// @route   GET /api/projects/:id
-// @desc    Get a single project by ID
-router.get("/:id", (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.id;
+// Update user profile
+router.put("/:userId", protect, (req, res) => {
+  const { userId } = req.params;
+  const { name, bio, phone, location, skills } = req.body;
+  const currentUserId = req.user.id;
+
+  if (parseInt(currentUserId) !== parseInt(userId)) {
+    return res.status(403).json({ success: false, error: "You can only update your own profile" });
+  }
 
   try {
-    const project = db.prepare(`
-      SELECT * FROM projects WHERE id = ? AND created_by = ?
-    `).get(id, userId);
-    
-    if (!project) {
-      return res.status(404).json({ success: false, error: "Project not found" });
+    // Update user info
+    if (name) {
+      db.prepare(`UPDATE users SET name = ? WHERE id = ?`).run(name, userId);
+    }
+    if (bio) {
+      db.prepare(`UPDATE users SET bio = ? WHERE id = ?`).run(bio, userId);
+    }
+    if (phone) {
+      db.prepare(`UPDATE users SET phone = ? WHERE id = ?`).run(phone, userId);
+    }
+    if (location) {
+      db.prepare(`UPDATE users SET location = ? WHERE id = ?`).run(location, userId);
     }
     
-    res.json({ success: true, project });
+    // Update skills (delete old, insert new)
+    if (skills && Array.isArray(skills)) {
+      db.prepare(`DELETE FROM user_skills WHERE user_id = ?`).run(userId);
+      const stmt = db.prepare(`INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)`);
+      skills.forEach(skill => {
+        stmt.run(userId, skill.name, skill.level || "Intermediate");
+      });
+    }
+    
+    res.json({ success: true, message: "Profile updated successfully" });
   } catch (err) {
-    console.error("Error fetching project:", err.message);
+    console.error("Update profile error:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// @route   PUT /api/projects/:id
-// @desc    Update a project
-router.put("/:id", (req, res) => {
-  const { id } = req.params;
-  const { title, description, status } = req.body;
+// Setup user role (for new users)
+router.post("/setup-role", protect, (req, res) => {
+  const { role, department, skills } = req.body;
   const userId = req.user.id;
 
-  try {
-    // First check if project exists and belongs to user
-    const project = db.prepare(`SELECT created_by FROM projects WHERE id = ?`).get(id);
-    
-    if (!project) {
-      return res.status(404).json({ success: false, error: "Project not found" });
-    }
-    
-    if (project.created_by !== userId) {
-      return res.status(403).json({ success: false, error: "You don't have permission to update this project" });
-    }
+  console.log(`Setting up role for user ${userId}: ${role}`);
 
-    db.prepare(`
-      UPDATE projects SET title = ?, description = ?, status = ? WHERE id = ?
-    `).run(title, description, status, id);
-    
-    res.json({ success: true, message: "Project updated successfully" });
-  } catch (err) {
-    console.error("Error updating project:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+  const validRoles = ['UI Developer', 'Frontend Developer', 'Backend Developer', 
+                      'Full Stack Developer', 'Tester', 'DevOps', 'Product Owner', 
+                      'Scrum Master', 'Designer', 'Project Manager'];
+
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ success: false, error: "Invalid role selected" });
   }
-});
-
-// @route   DELETE /api/projects/:id
-// @desc    Delete a project
-router.delete("/:id", (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.id;
 
   try {
-    // First check if project exists and belongs to user
-    const project = db.prepare(`SELECT created_by FROM projects WHERE id = ?`).get(id);
+    db.prepare(`UPDATE users SET role = ?, department = ? WHERE id = ?`).run(role, department || null, userId);
     
-    if (!project) {
-      return res.status(404).json({ success: false, error: "Project not found" });
+    if (skills && Array.isArray(skills) && skills.length > 0) {
+      const stmt = db.prepare(`INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)`);
+      skills.forEach(skill => {
+        stmt.run(userId, skill.name, skill.level || 'Intermediate');
+      });
     }
     
-    if (project.created_by !== userId) {
-      return res.status(403).json({ success: false, error: "You don't have permission to delete this project" });
-    }
-
-    db.prepare(`DELETE FROM projects WHERE id = ?`).run(id);
-    
-    res.json({ success: true, message: "Project deleted successfully" });
+    res.json({ success: true, message: "Role setup completed" });
   } catch (err) {
-    console.error("Error deleting project:", err.message);
+    console.error("Role setup error:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
