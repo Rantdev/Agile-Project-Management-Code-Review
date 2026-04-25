@@ -2,15 +2,16 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FcGoogle } from "react-icons/fc";
-import { FiMail, FiLock, FiLogIn } from "react-icons/fi";
+import { FiMail, FiLock, FiLogIn, FiEye, FiEyeOff } from "react-icons/fi";
 import { GoogleLogin } from "@react-oauth/google";
 import toast from "react-hot-toast";
 import api from "../services/api";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
 
   // Redirect if already logged in
@@ -19,6 +20,10 @@ const Login = () => {
       navigate("/dashboard");
     }
   }, [user, navigate]);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,58 +48,55 @@ const Login = () => {
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
-  console.log("Google Success:", credentialResponse);
-  
-  setLoading(true);
-  try {
-    // Send the Google credential token to backend
-    const res = await api.post("/auth/google", {
-      token: credentialResponse.credential
-    });
+    console.log("Google Success:", credentialResponse);
     
-    console.log("Backend response:", res.data);
-    
-    if (res.data.success) {
-      // Store token and user data
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-      localStorage.setItem("userId", res.data.user.id);
+    setLoading(true);
+    try {
+      // Send the Google credential token to backend
+      const res = await api.post("/auth/google", {
+        token: credentialResponse.credential
+      });
       
-      // Set default auth header for future requests
-      api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+      console.log("Backend response:", res.data);
       
-      toast.success("Google login successful!");
-      
-      // Check if user needs role setup
-      try {
-        const roleCheck = await api.get("/auth/check-role-setup", {
-          headers: { Authorization: `Bearer ${res.data.token}` }
-        });
+      if (res.data.success) {
+        // Store token and user data
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+        localStorage.setItem("userId", res.data.user.id);
         
-        console.log("Role check response:", roleCheck.data);
+        // Set default auth header for future requests
+        api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
         
-        if (roleCheck.data.needsRoleSetup) {
-          // Redirect to role setup page
-          navigate("/role-setup");
-        } else {
-          // Redirect to dashboard
+        toast.success("Google login successful!");
+        
+        // Check if user needs role setup
+        try {
+          const roleCheck = await api.get("/auth/check-role-setup", {
+            headers: { Authorization: `Bearer ${res.data.token}` }
+          });
+          
+          console.log("Role check response:", roleCheck.data);
+          
+          if (roleCheck.data.needsRoleSetup) {
+            navigate("/role-setup");
+          } else {
+            navigate("/dashboard");
+          }
+        } catch (roleError) {
+          console.error("Role check failed:", roleError);
           navigate("/dashboard");
         }
-      } catch (roleError) {
-        console.error("Role check failed:", roleError);
-        // If role check fails, still try to go to dashboard
-        navigate("/dashboard");
+      } else {
+        toast.error(res.data.error || "Google login failed");
       }
-    } else {
-      toast.error(res.data.error || "Google login failed");
+    } catch (error) {
+      console.error("Google login error:", error);
+      toast.error(error.response?.data?.error || "Google login failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Google login error:", error);
-    toast.error(error.response?.data?.error || "Google login failed. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleGoogleError = () => {
     console.log("Google Login Failed");
@@ -104,9 +106,9 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md transform transition-all hover:shadow-2xl">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <FiLogIn className="text-white text-3xl" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800">Welcome Back</h1>
@@ -124,11 +126,11 @@ const Login = () => {
                 type="email"
                 name="email"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                 placeholder="you@example.com"
                 required
-                disabled={loading}
+                disabled={loading || authLoading}
               />
             </div>
           </div>
@@ -140,35 +142,40 @@ const Login = () => {
             <div className="relative">
               <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 name="password"
                 value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                onChange={handleChange}
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                 placeholder="••••••••"
                 required
-                disabled={loading}
+                disabled={loading || authLoading}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+              </button>
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || authLoading}
             className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading || authLoading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
-        {/* Divider */}
         <div className="flex items-center my-6">
           <hr className="flex-grow border-gray-300" />
           <span className="px-4 text-gray-400 text-sm">OR</span>
           <hr className="flex-grow border-gray-300" />
         </div>
 
-        {/* Google Sign In Button */}
         <div className="flex justify-center">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}

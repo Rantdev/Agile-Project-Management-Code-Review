@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 
 const RoleSetup = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
   const [department, setDepartment] = useState("");
@@ -68,10 +68,6 @@ const RoleSetup = () => {
     }
   };
 
-  const skipForNow = () => {
-    navigate("/dashboard");
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-8">
@@ -81,7 +77,6 @@ const RoleSetup = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Role Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Your Role *
@@ -99,7 +94,6 @@ const RoleSetup = () => {
             </select>
           </div>
 
-          {/* Department */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Department
@@ -113,7 +107,6 @@ const RoleSetup = () => {
             />
           </div>
 
-          {/* Skills */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Skills & Technologies
@@ -154,22 +147,13 @@ const RoleSetup = () => {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={skipForNow}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Skip for now
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? "Saving..." : "Complete Setup"}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? "Saving..." : "Complete Setup"}
+          </button>
         </form>
       </div>
     </div>
