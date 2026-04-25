@@ -1,9 +1,10 @@
 const db = require("../config/db");
 
 const initDB = () => {
-  db.serialize(() => {
+  // better-sqlite3 uses exec() for multiple statements
+  try {
     // Users table
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -17,7 +18,7 @@ const initDB = () => {
     `);
 
     // Projects table
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -31,7 +32,7 @@ const initDB = () => {
     `);
 
     // Stories table
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS stories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
@@ -45,7 +46,7 @@ const initDB = () => {
     `);
 
     // Tasks table
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         story_id INTEGER NOT NULL,
@@ -60,7 +61,7 @@ const initDB = () => {
     `);
 
     // Team members table
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS team_members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
@@ -73,7 +74,9 @@ const initDB = () => {
     `);
 
     console.log("✅ Database tables created successfully");
-  });
+  } catch (err) {
+    console.error("❌ Database initialization error:", err.message);
+  }
 };
 
 module.exports = initDB;
