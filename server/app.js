@@ -3,18 +3,16 @@ const express = require("express");
 const cors = require("cors");
 const initDB = require("./models/initDB");
 
-// Import all routes
+// Import routes
 const authRoutes = require("./routes/authRoutes");
 const projectRoutes = require("./routes/projectRoutes");
-const storyRoutes = require("./routes/storyRoutes");
 const taskRoutes = require("./routes/taskRoutes");
-const teamRoutes = require("./routes/teamRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const performanceRoutes = require("./routes/performanceRoutes");
 
 const app = express();
 
-// Initialize database
+// Initialize database (CALL the function)
 initDB();
 
 // CORS - Allow all origins for deployment
@@ -32,11 +30,14 @@ app.use(express.urlencoded({ extended: true }));
 // Register all routes
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
-app.use("/api/stories", storyRoutes);
 app.use("/api/tasks", taskRoutes);
-app.use("/api/team", teamRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/performance", performanceRoutes);
+
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
+});
 
 // Root route
 app.get("/", (req, res) => {
@@ -47,18 +48,11 @@ app.get("/", (req, res) => {
       health: "/health",
       auth: "/api/auth",
       projects: "/api/projects",
-      stories: "/api/stories",
       tasks: "/api/tasks",
-      team: "/api/team",
       profile: "/api/profile",
       performance: "/api/performance"
     }
   });
-});
-
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
 // Error handler
