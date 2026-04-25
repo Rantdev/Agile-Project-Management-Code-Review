@@ -1,8 +1,9 @@
 ﻿{
-  "name": "agile-project-management",
+  "name": "attractive-creation",
   "version": "1.0.0",
+  "description": "Agile Project Management Tool",
   "scripts": {
-    "start": "cd server && npm install && node server.js",
+    "start": "cd server && npm start",
     "postinstall": "cd server && npm install"
   },
   "engines": {
