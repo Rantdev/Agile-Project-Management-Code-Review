@@ -1,4 +1,4 @@
-const Database = require("better-sqlite3");
+const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const fs = require("fs");
 
@@ -13,12 +13,14 @@ if (!fs.existsSync(dbDir)) {
 
 console.log("?? Database path:", dbPath);
 
-// better-sqlite3 is synchronous and easier for deployment
-const db = new Database(dbPath);
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error("? Database connection failed:", err.message);
+  } else {
+    console.log("? Connected to SQLite database");
+  }
+});
 
-// Enable foreign keys
-db.pragma('foreign_keys = ON');
-
-console.log("? Connected to SQLite database");
+db.run("PRAGMA foreign_keys = ON");
 
 module.exports = db;
