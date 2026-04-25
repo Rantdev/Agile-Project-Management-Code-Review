@@ -1,12 +1,12 @@
 {
-  "name": "attractive-creation",
-  "version": "1.0.0",
-  "description": "Agile Project Management Tool",
-  "scripts": {
-    "start": "cd server && npm start",
-    "postinstall": "cd server && npm install"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+    "name":  "attractive-creation",
+    "version":  "1.0.0",
+    "description":  "Agile Project Management Tool",
+    "scripts":  {
+                    "start":  "cd server \u0026\u0026 npm start",
+                    "postinstall":  "cd server \u0026\u0026 npm install"
+                },
+    "engines":  {
+                    "node":  "\u003e=20.0.0 \u003c22.0.0"
+                }
 }

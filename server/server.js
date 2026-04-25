@@ -9,6 +9,6 @@ app.get("/health", (req, res) => {
 });
 
 app.listen(PORT, HOST, () => {
-  console.log(\?? Server running on http://\System.Management.Automation.Internal.Host.InternalHost:\\);
-  console.log(\?? Health check: http://\System.Management.Automation.Internal.Host.InternalHost:\/health\);
+  console.log(Server running on http://System.Management.Automation.Internal.Host.InternalHost:);
+  console.log(Health check: http://System.Management.Automation.Internal.Host.InternalHost:/health);
 });
