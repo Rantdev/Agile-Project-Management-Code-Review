@@ -5,11 +5,12 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP
+// Send OTP (with console logging for development)
 exports.sendOTP = (req, res) => {
   const { email } = req.body;
 
-  console.log(`Sending OTP to: ${email}`);
+  console.log(`\n========== OTP REQUEST ==========`);
+  console.log(`📧 Email: ${email}`);
 
   if (!email) {
     return res.status(400).json({ success: false, error: "Email is required" });
@@ -36,7 +37,12 @@ exports.sendOTP = (req, res) => {
       "INSERT INTO otp_codes (email, otp_code, expires_at) VALUES (?, ?, ?)"
     ).run(email.toLowerCase(), otpCode, expiresAt.toISOString());
 
-    console.log(`OTP for ${email}: ${otpCode}`);
+    // Log OTP to console (for development)
+    console.log(`\n🔐 ===== YOUR OTP CODE =====`);
+    console.log(`📧 To: ${email}`);
+    console.log(`🔑 OTP: ${otpCode}`);
+    console.log(`⏰ Expires in: 10 minutes`);
+    console.log(`===========================\n`);
 
     res.json({
       success: true,
@@ -54,7 +60,9 @@ exports.sendOTP = (req, res) => {
 exports.verifyOTP = (req, res) => {
   const { email, otpCode } = req.body;
 
-  console.log(`Verifying OTP for: ${email}`);
+  console.log(`\n========== OTP VERIFICATION ==========`);
+  console.log(`📧 Email: ${email}`);
+  console.log(`🔑 Entered OTP: ${otpCode}`);
 
   if (!email || !otpCode) {
     return res.status(400).json({ success: false, error: "Email and OTP are required" });
@@ -69,6 +77,7 @@ exports.verifyOTP = (req, res) => {
     `).get(email.toLowerCase(), otpCode, now);
 
     if (!otpRecord) {
+      console.log(`❌ Invalid or expired OTP for: ${email}`);
       return res.status(400).json({ success: false, error: "Invalid or expired OTP" });
     }
 
@@ -77,6 +86,8 @@ exports.verifyOTP = (req, res) => {
 
     // Mark user as verified
     db.prepare("UPDATE users SET is_verified = 1 WHERE email = ?").run(email.toLowerCase());
+
+    console.log(`✅ OTP verified successfully for: ${email}`);
 
     res.json({
       success: true,
@@ -92,7 +103,8 @@ exports.verifyOTP = (req, res) => {
 exports.resendOTP = (req, res) => {
   const { email } = req.body;
 
-  console.log(`Resending OTP to: ${email}`);
+  console.log(`\n========== RESEND OTP ==========`);
+  console.log(`📧 Email: ${email}`);
 
   if (!email) {
     return res.status(400).json({ success: false, error: "Email is required" });
@@ -117,7 +129,10 @@ exports.resendOTP = (req, res) => {
       "INSERT INTO otp_codes (email, otp_code, expires_at) VALUES (?, ?, ?)"
     ).run(email.toLowerCase(), otpCode, expiresAt.toISOString());
 
-    console.log(`New OTP for ${email}: ${otpCode}`);
+    console.log(`\n🔐 ===== NEW OTP CODE =====`);
+    console.log(`📧 To: ${email}`);
+    console.log(`🔑 OTP: ${otpCode}`);
+    console.log(`=========================\n`);
 
     res.json({
       success: true,

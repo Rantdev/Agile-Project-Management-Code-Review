@@ -85,6 +85,7 @@ const initDB = () => {
       )
     `);
     // Add this to your initDB function
+// Add OTP codes table
 db.exec(`
   CREATE TABLE IF NOT EXISTS otp_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
