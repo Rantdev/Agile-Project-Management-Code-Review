@@ -1,5 +1,4 @@
 const jwt = require("jsonwebtoken");
-const db = require("../config/db");
 
 const protect = async (req, res, next) => {
   let token;

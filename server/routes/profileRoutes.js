@@ -3,89 +3,56 @@ const router = express.Router();
 const { protect } = require("../middleware/auth");
 const db = require("../config/db");
 
-// Get user profile
-router.get("/:userId", protect, (req, res) => {
-  const { userId } = req.params;
-  const currentUserId = req.user.id;
+router.use(protect);
 
-  console.log(`Fetching profile for user: ${userId}, current: ${currentUserId}`);
-
-  // Users can only view their own profile
-  if (parseInt(currentUserId) !== parseInt(userId)) {
-    return res.status(403).json({ success: false, error: "You can only view your own profile" });
-  }
-
+// Get profile
+router.get("/:userId", (req, res) => {
   try {
     const user = db.prepare(`
       SELECT id, name, email, role, created_at FROM users WHERE id = ?
-    `).get(userId);
+    `).get(req.params.userId);
     
     if (!user) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
     
-    // Get user skills
     const skills = db.prepare(`
       SELECT id, skill_name as name, skill_level as level FROM user_skills WHERE user_id = ?
-    `).all(userId);
+    `).all(req.params.userId);
     
     user.skills = skills || [];
     
-    console.log(`Profile found: ${user.name}`);
     res.json({ success: true, profile: user });
   } catch (err) {
-    console.error("Profile error:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Update user profile
-router.put("/:userId", protect, (req, res) => {
-  const { userId } = req.params;
+// Update profile
+router.put("/:userId", (req, res) => {
   const { name, bio, phone, location, skills } = req.body;
-  const currentUserId = req.user.id;
-
-  if (parseInt(currentUserId) !== parseInt(userId)) {
-    return res.status(403).json({ success: false, error: "You can only update your own profile" });
-  }
 
   try {
-    // Update user info
-    if (name) {
-      db.prepare(`UPDATE users SET name = ? WHERE id = ?`).run(name, userId);
-    }
-    if (bio) {
-      db.prepare(`UPDATE users SET bio = ? WHERE id = ?`).run(bio, userId);
-    }
-    if (phone) {
-      db.prepare(`UPDATE users SET phone = ? WHERE id = ?`).run(phone, userId);
-    }
-    if (location) {
-      db.prepare(`UPDATE users SET location = ? WHERE id = ?`).run(location, userId);
-    }
+    if (name) db.prepare(`UPDATE users SET name = ? WHERE id = ?`).run(name, req.params.userId);
+    if (bio) db.prepare(`UPDATE users SET bio = ? WHERE id = ?`).run(bio, req.params.userId);
+    if (phone) db.prepare(`UPDATE users SET phone = ? WHERE id = ?`).run(phone, req.params.userId);
+    if (location) db.prepare(`UPDATE users SET location = ? WHERE id = ?`).run(location, req.params.userId);
     
-    // Update skills (delete old, insert new)
     if (skills && Array.isArray(skills)) {
-      db.prepare(`DELETE FROM user_skills WHERE user_id = ?`).run(userId);
+      db.prepare(`DELETE FROM user_skills WHERE user_id = ?`).run(req.params.userId);
       const stmt = db.prepare(`INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)`);
-      skills.forEach(skill => {
-        stmt.run(userId, skill.name, skill.level || "Intermediate");
-      });
+      skills.forEach(skill => stmt.run(req.params.userId, skill.name, skill.level || "Intermediate"));
     }
     
     res.json({ success: true, message: "Profile updated successfully" });
   } catch (err) {
-    console.error("Update profile error:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Setup user role (for new users)
-router.post("/setup-role", protect, (req, res) => {
+// Setup role
+router.post("/setup-role", (req, res) => {
   const { role, department, skills } = req.body;
-  const userId = req.user.id;
-
-  console.log(`Setting up role for user ${userId}: ${role}`);
 
   const validRoles = ['UI Developer', 'Frontend Developer', 'Backend Developer', 
                       'Full Stack Developer', 'Tester', 'DevOps', 'Product Owner', 
@@ -96,18 +63,16 @@ router.post("/setup-role", protect, (req, res) => {
   }
 
   try {
-    db.prepare(`UPDATE users SET role = ?, department = ? WHERE id = ?`).run(role, department || null, userId);
+    db.prepare(`UPDATE users SET role = ?, department = ? WHERE id = ?`)
+      .run(role, department || null, req.user.id);
     
     if (skills && Array.isArray(skills) && skills.length > 0) {
       const stmt = db.prepare(`INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)`);
-      skills.forEach(skill => {
-        stmt.run(userId, skill.name, skill.level || 'Intermediate');
-      });
+      skills.forEach(skill => stmt.run(req.user.id, skill.name, skill.level || 'Intermediate'));
     }
     
     res.json({ success: true, message: "Role setup completed" });
   } catch (err) {
-    console.error("Role setup error:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });

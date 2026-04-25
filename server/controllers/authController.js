@@ -27,7 +27,6 @@ exports.register = async (req, res) => {
   }
 
   try {
-    // Check if user exists
     const existingUser = db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase());
     
     if (existingUser) {
@@ -100,7 +99,7 @@ exports.login = (req, res) => {
 // Get current user
 exports.getMe = (req, res) => {
   try {
-    const user = db.prepare("SELECT id, name, email FROM users WHERE id = ?").get(req.user.id);
+    const user = db.prepare("SELECT id, name, email, role FROM users WHERE id = ?").get(req.user.id);
     
     if (!user) {
       return res.status(404).json({ success: false, error: "User not found" });
@@ -112,7 +111,7 @@ exports.getMe = (req, res) => {
   }
 };
 
-// Google Login (simplified)
+// Google Login
 exports.googleLogin = async (req, res) => {
   const { token } = req.body;
 
@@ -160,41 +159,18 @@ exports.googleLogin = async (req, res) => {
       });
     }
   } catch (error) {
+    console.error("Google login error:", error);
     res.status(401).json({ success: false, error: "Invalid Google token" });
   }
 };
 
-// Check if user needs role setup
-// Check if user needs role setup
+// Check role setup
 exports.checkRoleSetup = (req, res) => {
   try {
     const user = db.prepare("SELECT role FROM users WHERE id = ?").get(req.user.id);
-    // User needs role setup if they have no role or role is 'member'
     const needsRoleSetup = !user || !user.role || user.role === 'member';
     res.json({ success: true, needsRoleSetup });
   } catch (error) {
-    console.error("Role check error:", error);
     res.json({ success: true, needsRoleSetup: true });
-  }
-};
-
-// Check if user needs OTP (simplified)
-exports.checkNeedsOTP = (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ success: false, error: "Email is required" });
-  }
-
-  try {
-    const user = db.prepare("SELECT id, email FROM users WHERE email = ?").get(email.toLowerCase());
-    
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    res.json({ success: true, needsOTP: false, isVerified: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
   }
 };

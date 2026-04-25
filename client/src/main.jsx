@@ -7,10 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 import App from "./App";
 import "./index.css";
 
-// Your Google Client ID
 const GOOGLE_CLIENT_ID = "106987871275-ait10kap6dlq0coeos96r3q2g62i53fs.apps.googleusercontent.com";
-
-console.log("Initializing app with Google Client ID:", GOOGLE_CLIENT_ID);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

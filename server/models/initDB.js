@@ -4,7 +4,7 @@ const initDB = () => {
   console.log("Initializing database...");
 
   try {
-    // Create users table
+    // Users table
     db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -12,12 +12,12 @@ const initDB = () => {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT DEFAULT 'member',
-        is_verified INTEGER DEFAULT 0,
+        is_verified INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Create projects table
+    // Projects table
     db.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +30,7 @@ const initDB = () => {
       )
     `);
 
-    // Create stories table
+    // Stories table
     db.exec(`
       CREATE TABLE IF NOT EXISTS stories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +43,7 @@ const initDB = () => {
       )
     `);
 
-    // Create tasks table
+    // Tasks table
     db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +57,7 @@ const initDB = () => {
       )
     `);
 
-    // Create team_members table
+    // Team members table
     db.exec(`
       CREATE TABLE IF NOT EXISTS team_members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +70,22 @@ const initDB = () => {
       )
     `);
 
-    // Create user_skills table
+    // Chat messages table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        user_name TEXT NOT NULL,
+        user_email TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    // User skills table
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_skills (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,5 +103,4 @@ const initDB = () => {
   }
 };
 
-// Make sure to export the function
 module.exports = initDB;
