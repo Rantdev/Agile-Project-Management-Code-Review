@@ -5,25 +5,19 @@ const {
   login, 
   getMe, 
   googleLogin,
-  updateProfile,
-  changePassword,
-  deleteAccount,
-  checkRoleSetup,
-  checkNeedsOTP
+  checkNeedsOTP,
+  checkRoleSetup
 } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 
-// Public routes (no authentication required)
+// Public routes
 router.post("/register", register);
 router.post("/login", login);
 router.post("/google", googleLogin);
 router.post("/check-needs-otp", checkNeedsOTP);
 
-// Protected routes (authentication required)
+// Protected routes
 router.get("/me", protect, getMe);
 router.get("/check-role-setup", protect, checkRoleSetup);
-router.put("/profile", protect, updateProfile);
-router.put("/change-password", protect, changePassword);
-router.delete("/account", protect, deleteAccount);
 
 module.exports = router;
