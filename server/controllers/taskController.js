@@ -7,6 +7,8 @@ exports.createTask = (req, res) => {
   const created_by = req.user.id;
   const creatorName = req.user.name || req.user.email;
 
+  console.log("Creating task:", { story_id, title, assignee, deadline });
+
   if (!story_id || !title) {
     return res.status(400).json({ success: false, error: "Story ID and title are required" });
   }
@@ -30,14 +32,24 @@ exports.createTask = (req, res) => {
     
     // Send email notification if assignee exists
     if (assignee && assigneeInfo) {
-      sendTaskEmail(assignee, "New Task Assigned - AgileFlow", `You have been assigned a new task: "${title}"`, {
-        taskTitle: title,
-        storyTitle: storyInfo?.story_title,
-        projectTitle: storyInfo?.project_title,
-        deadline: deadline,
-        assignerName: creatorName,
-        assigneeName: assigneeInfo?.name
-      });
+      const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head><title>Task Assigned</title></head>
+        <body style="font-family: Arial, sans-serif;">
+          <h2>New Task Assigned</h2>
+          <p>Hello ${assigneeInfo.name},</p>
+          <p>You have been assigned a new task: <strong>"${title}"</strong></p>
+          <p><strong>Story:</strong> ${storyInfo?.story_title || 'N/A'}</p>
+          <p><strong>Project:</strong> ${storyInfo?.project_title || 'N/A'}</p>
+          <p><strong>Deadline:</strong> ${deadline || 'Not set'}</p>
+          <p><strong>Assigned by:</strong> ${creatorName}</p>
+          <a href="${process.env.CLIENT_URL || 'https://agile-project-management-code-review-1.onrender.com'}/my-tasks" style="background: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View My Tasks</a>
+        </body>
+        </html>
+      `;
+      
+      sendTaskEmail(assignee, "New Task Assigned - AgileFlow", `You have been assigned: ${title}`, emailHtml);
     }
     
     res.status(201).json({

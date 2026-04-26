@@ -63,13 +63,13 @@ exports.addMember = (req, res) => {
   }
 };
 
-// Get team members (updated to include user names)
+// Get team members
 exports.getMembers = (req, res) => {
   const { projectId } = req.params;
 
   try {
     const members = db.prepare(`
-      SELECT tm.id, tm.user_email, tm.role, tm.joined_at, u.name
+      SELECT tm.id, tm.user_email, tm.role, tm.joined_at, COALESCE(u.name, tm.user_email) as name
       FROM team_members tm
       LEFT JOIN users u ON tm.user_email = u.email
       WHERE tm.project_id = ?
@@ -89,9 +89,8 @@ exports.deleteMember = (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Get project info
     const member = db.prepare(`
-      SELECT tm.project_id, p.created_by, tm.user_email
+      SELECT tm.project_id, p.created_by
       FROM team_members tm
       JOIN projects p ON tm.project_id = p.id
       WHERE tm.id = ?
