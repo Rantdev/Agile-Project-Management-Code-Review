@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import Sidebar from "../components/Layout/Sidebar";
 import api from "../services/api";
 import toast from "react-hot-toast";
-import { FiPlus, FiArrowLeft, FiTrash2, FiUser } from "react-icons/fi";
+import { FiPlus, FiArrowLeft, FiTrash2, FiUsers } from "react-icons/fi";
 
 const Team = () => {
   const { id } = useParams();
@@ -16,15 +16,21 @@ const Team = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log("Fetching project:", id);
+      console.log("Fetching team members for project:", id);
+      
+      // Fix: Use the correct endpoint /team/project/:projectId
       const [projectRes, membersRes] = await Promise.all([
         api.get(`/projects/${id}`),
-        api.get(`/team/${id}`)
+        api.get(`/team/project/${id}`)  // Changed from /team/${id} to /team/project/${id}
       ]);
+      
       setProject(projectRes.data.project);
       setMembers(membersRes.data.members || []);
+      console.log("Members loaded:", membersRes.data.members);
     } catch (error) {
       console.error("Failed to load team data:", error);
-      toast.error("Failed to load team data");
+      toast.error(error.response?.data?.error || "Failed to load team data");
     } finally {
       setLoading(false);
     }
@@ -82,6 +88,20 @@ const Team = () => {
     );
   }
 
+  if (!project) {
+    return (
+      <div className="flex">
+        <Sidebar />
+        <div className="flex-1 ml-64 p-8">
+          <div className="text-center py-12">
+            <p className="text-gray-500">Project not found</p>
+            <Link to="/projects" className="text-blue-600 mt-4 inline-block">Back to Projects</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex">
       <Sidebar />
@@ -115,9 +135,9 @@ const Team = () => {
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             {members.length === 0 ? (
               <div className="text-center py-12">
-                <FiUser className="text-6xl text-gray-300 mx-auto mb-4" />
+                <FiUsers className="text-6xl text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">No team members yet</p>
-                <p className="text-sm text-gray-400">Click "Add Member" to invite someone</p>
+                <p className="text-sm text-gray-400">Click "Add Member" to invite someone to your team</p>
               </div>
             ) : (
               <table className="w-full">
@@ -182,6 +202,7 @@ const Team = () => {
                   placeholder="colleague@example.com"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">User must have an account to be added</p>
               </div>
 
               <div>
@@ -198,6 +219,7 @@ const Team = () => {
                   <option>Designer</option>
                   <option>Tester</option>
                   <option>Product Owner</option>
+                  <option>Scrum Master</option>
                 </select>
               </div>
 

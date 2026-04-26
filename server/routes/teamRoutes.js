@@ -5,8 +5,8 @@ const db = require("../config/db");
 
 router.use(protect);
 
-// Get team members by project
-router.get("/:projectId", (req, res) => {
+// Get team members by project - FIXED ENDPOINT
+router.get("/project/:projectId", (req, res) => {
   const { projectId } = req.params;
   const userId = req.user.id;
 
@@ -15,7 +15,7 @@ router.get("/:projectId", (req, res) => {
   try {
     // Check if user has access to this project
     const project = db.prepare(`
-      SELECT id, created_by FROM projects WHERE id = ?
+      SELECT id, created_by, title FROM projects WHERE id = ?
     `).get(projectId);
     
     if (!project) {
@@ -30,7 +30,7 @@ router.get("/:projectId", (req, res) => {
       ORDER BY joined_at DESC
     `).all(projectId);
     
-    console.log(`Found ${members.length} team members`);
+    console.log(`Found ${members.length} team members for project: ${project.title}`);
     res.json({ success: true, members: members || [] });
   } catch (err) {
     console.error("Error fetching team members:", err.message);
