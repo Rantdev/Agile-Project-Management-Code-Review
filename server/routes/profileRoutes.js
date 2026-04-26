@@ -192,6 +192,12 @@ router.post("/setup-role", (req, res) => {
     });
   }
 
+  // Check if user exists
+  const user = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
+  if (!user) {
+    return res.status(404).json({ success: false, error: "User not found" });
+  }
+
   // Update user role and department
   db.run(
     "UPDATE users SET role = ?, department = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -205,27 +211,20 @@ router.post("/setup-role", (req, res) => {
       // Add skills if provided
       if (skills && Array.isArray(skills) && skills.length > 0) {
         const stmt = db.prepare("INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)");
-        
         skills.forEach(skill => {
           stmt.run([userId, skill.name, skill.level || 'Intermediate']);
         });
-        
         stmt.finalize();
       }
 
       // Get updated user
-      db.get("SELECT id, name, email, role FROM users WHERE id = ?", [userId], (err, user) => {
-        if (err) {
-          console.error("❌ Error fetching updated user:", err.message);
-          return res.status(500).json({ success: false, error: err.message });
-        }
-        
-        console.log("✅ Role setup completed successfully");
-        res.json({ 
-          success: true, 
-          message: "Role setup completed successfully",
-          user: user
-        });
+      const updatedUser = db.prepare("SELECT id, name, email, role FROM users WHERE id = ?").get(userId);
+      
+      console.log("✅ Role setup completed successfully for user:", updatedUser);
+      res.json({ 
+        success: true, 
+        message: "Role setup completed successfully",
+        user: updatedUser
       });
     }
   );

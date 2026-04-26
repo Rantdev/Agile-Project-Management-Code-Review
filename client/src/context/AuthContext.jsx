@@ -131,18 +131,28 @@ export const AuthProvider = ({ children }) => {
 
   const completeRoleSetup = async (roleData) => {
     try {
+      console.log("Sending role setup data:", roleData);
       const res = await api.post("/profile/setup-role", roleData);
+      console.log("Role setup response:", res.data);
+      
       if (res.data.success) {
         setNeedsRoleSetup(false);
+        // Update user with new role
         if (res.data.user) {
           setUser(res.data.user);
           localStorage.setItem("user", JSON.stringify(res.data.user));
+        } else {
+          // Fetch updated user
+          const userRes = await api.get("/auth/me");
+          setUser(userRes.data.user);
+          localStorage.setItem("user", JSON.stringify(userRes.data.user));
         }
         toast.success("Profile setup complete!");
         return true;
       }
       return false;
     } catch (error) {
+      console.error("Role setup error:", error);
       toast.error(error.response?.data?.error || "Setup failed");
       return false;
     }
