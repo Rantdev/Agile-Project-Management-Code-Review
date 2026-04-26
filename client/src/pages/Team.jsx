@@ -97,7 +97,7 @@ const Team = () => {
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              得到
+             
                 <thead className="bg-gray-50 border-b">
                   <tr><th className="text-left py-4 px-6">Email</th><th className="text-left py-4 px-6">Role</th><th className="text-left py-4 px-6">Joined</th><th className="text-left py-4 px-6">Actions</th></tr>
                 </thead>
