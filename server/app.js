@@ -11,7 +11,7 @@ const teamRoutes = require("./routes/teamRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const performanceRoutes = require("./routes/performanceRoutes");
-
+const setupRoutes = require("./routes/setup");
 const app = express();
 
 initDB();
@@ -19,6 +19,7 @@ initDB();
 app.use(cors({ origin: true, credentials: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json());
 
+app.use("/api/setup", setupRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/stories", storyRoutes);
