@@ -9,7 +9,7 @@ exports.addMember = (req, res) => {
   console.log(`Adding team member ${user_email} to project ${project_id}`);
 
   try {
-    // Check if user owns the project
+    // Get project info
     const project = db.prepare(`
       SELECT created_by, title FROM projects WHERE id = ?
     `).get(project_id);
@@ -46,8 +46,11 @@ exports.addMember = (req, res) => {
       VALUES (?, ?, ?)
     `).run(project_id, user_email, role || "member");
     
+    // Get owner name for email
+    const owner = db.prepare(`SELECT name FROM users WHERE id = ?`).get(userId);
+    
     // Send email notification
-    sendTeamMemberEmail(user_email, project.title, role || "member", req.user.name);
+    sendTeamMemberEmail(user_email, project.title, role || "member", owner?.name || "Project Owner");
     
     res.status(201).json({
       success: true,

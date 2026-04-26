@@ -20,7 +20,6 @@ const getTransporter = () => {
 exports.sendOTPEmail = async (to, otpCode, userName) => {
   console.log(`📧 Sending OTP to: ${to}`);
 
-  // For development, log OTP to console
   if (process.env.NODE_ENV === 'development') {
     console.log(`\n========== 🔐 DEVELOPMENT MODE ==========`);
     console.log(`📧 To: ${to}`);
@@ -81,6 +80,7 @@ exports.sendOTPEmail = async (to, otpCode, userName) => {
     return false;
   }
 };
+
 // Send email when user is added to team
 exports.sendTeamMemberEmail = async (toEmail, projectName, role, addedByName) => {
   console.log(`📧 Sending team invitation to: ${toEmail}`);
@@ -150,8 +150,51 @@ AgileFlow Team
   }
 };
 
-// Send task email
-exports.sendTaskEmail = async (to, subject, text) => {
+// Send task assignment email (updated with HTML)
+exports.sendTaskEmail = async (to, subject, text, taskDetails = {}) => {
+  console.log(`📧 Sending task email to: ${to}`);
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Task Assignment - AgileFlow</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        .container { max-width: 500px; margin: 50px auto; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .content { padding: 30px; }
+        .task-title { font-size: 20px; font-weight: bold; color: #333; margin: 10px 0; }
+        .details { background: #f8f9fa; padding: 15px; border-radius: 10px; margin: 15px 0; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef; }
+        .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin-top: 20px; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #718096; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header"><h1>🏆 AgileFlow</h1><p>Project Management Tool</p></div>
+        <div class="content">
+          <h2>Hello ${taskDetails.assigneeName || "Team Member"}!</h2>
+          <p>You have been assigned a new task:</p>
+          <div class="task-title">"${taskDetails.taskTitle || text.split('"')[1] || "New Task"}"</div>
+          
+          <div class="details">
+            <div class="detail-row"><strong>Story:</strong> <span>${taskDetails.storyTitle || "N/A"}</span></div>
+            <div class="detail-row"><strong>Project:</strong> <span>${taskDetails.projectTitle || "N/A"}</span></div>
+            <div class="detail-row"><strong>Deadline:</strong> <span>${taskDetails.deadline || "Not set"}</span></div>
+            <div class="detail-row"><strong>Assigned by:</strong> <span>${taskDetails.assignerName || "Project Owner"}</span></div>
+          </div>
+          
+          <a href="${process.env.CLIENT_URL || 'https://agile-project-management-code-review-1.onrender.com'}/my-tasks" class="button">View My Tasks</a>
+        </div>
+        <div class="footer"><p>&copy; 2024 AgileFlow. All rights reserved.</p></div>
+      </div>
+    </body>
+    </html>
+  `;
+
   try {
     const transporter = getTransporter();
     await transporter.sendMail({
@@ -159,11 +202,12 @@ exports.sendTaskEmail = async (to, subject, text) => {
       to: to,
       subject: subject,
       text: text,
+      html: htmlContent,
     });
-    console.log(`✅ Email sent to ${to}`);
+    console.log(`✅ Task email sent to ${to}`);
     return true;
   } catch (error) {
-    console.error("❌ Email error:", error.message);
+    console.error("❌ Task email error:", error.message);
     return false;
   }
 };
