@@ -211,3 +211,54 @@ exports.sendTaskEmail = async (to, subject, text, taskDetails = {}) => {
     return false;
   }
 };
+// Send password reset email
+exports.sendPasswordResetEmail = async (to, otpCode, userName) => {
+  console.log(`📧 Sending password reset OTP to: ${to}`);
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Password Reset - AgileFlow</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        .container { max-width: 500px; margin: 50px auto; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .content { padding: 40px 30px; text-align: center; }
+        .otp-code { font-size: 48px; font-weight: bold; color: #667eea; letter-spacing: 8px; margin: 20px 0; padding: 15px; background: #f0f0f0; border-radius: 12px; font-family: monospace; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #718096; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header"><h1>🔐 AgileFlow</h1><p>Password Reset</p></div>
+        <div class="content">
+          <h2>Hello ${userName || "User"}!</h2>
+          <p>You requested to reset your password. Use the following OTP:</p>
+          <div class="otp-code">${otpCode}</div>
+          <p>This OTP is valid for <strong>10 minutes</strong>.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+        </div>
+        <div class="footer"><p>&copy; 2024 AgileFlow. All rights reserved.</p></div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: `"AgileFlow" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: to,
+      subject: "Reset Your Password - AgileFlow",
+      text: `Your OTP for password reset is: ${otpCode}. Valid for 10 minutes.`,
+      html: htmlContent,
+    });
+    console.log(`✅ Password reset email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Password reset email error:", error.message);
+    return false;
+  }
+};

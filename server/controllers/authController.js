@@ -218,3 +218,131 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+// Forgot password - send OTP
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, error: "Email is required" });
+  }
+
+  try {
+    const user = db.prepare("SELECT id, name, email FROM users WHERE email = ?").get(email.toLowerCase());
+    
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Generate OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
+    // Delete old OTPs
+    db.prepare("DELETE FROM password_resets WHERE email = ?").run(email.toLowerCase());
+
+    // Save OTP
+    db.prepare(`
+      INSERT INTO password_resets (email, otp_code, expires_at) 
+      VALUES (?, ?, ?)
+    `).run(email.toLowerCase(), otpCode, expiresAt.toISOString());
+
+    // Send email with OTP
+    const { sendPasswordResetEmail } = require("./emailController");
+    await sendPasswordResetEmail(email, otpCode, user.name);
+
+    res.json({ 
+      success: true, 
+      message: "OTP sent to your email",
+      expiresIn: 10
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Verify OTP for password reset
+exports.verifyResetOTP = (req, res) => {
+  const { email, otpCode } = req.body;
+
+  if (!email || !otpCode) {
+    return res.status(400).json({ success: false, error: "Email and OTP are required" });
+  }
+
+  try {
+    const now = new Date().toISOString();
+    
+    const resetRecord = db.prepare(`
+      SELECT * FROM password_resets 
+      WHERE email = ? AND otp_code = ? AND is_used = 0 AND expires_at > ?
+    `).get(email.toLowerCase(), otpCode, now);
+
+    if (!resetRecord) {
+      return res.status(400).json({ success: false, error: "Invalid or expired OTP" });
+    }
+
+    // Mark OTP as used
+    db.prepare("UPDATE password_resets SET is_used = 1 WHERE id = ?").run(resetRecord.id);
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Save reset token
+    db.prepare(`
+      UPDATE password_resets SET reset_token = ? WHERE id = ?
+    `).run(resetToken, resetRecord.id);
+
+    res.json({ 
+      success: true, 
+      message: "OTP verified successfully",
+      resetToken: resetToken
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Reset password
+exports.resetPassword = async (req, res) => {
+  const { email, resetToken, newPassword } = req.body;
+
+  if (!email || !resetToken || !newPassword) {
+    return res.status(400).json({ success: false, error: "All fields are required" });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ success: false, error: "Password must be at least 6 characters" });
+  }
+
+  try {
+    // Verify reset token
+    const resetRecord = db.prepare(`
+      SELECT * FROM password_resets 
+      WHERE email = ? AND reset_token = ? AND is_used = 1
+    `).get(email.toLowerCase(), resetToken);
+
+    if (!resetRecord) {
+      return res.status(400).json({ success: false, error: "Invalid or expired reset token" });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password
+    db.prepare("UPDATE users SET password = ? WHERE email = ?").run(hashedPassword, email.toLowerCase());
+
+    // Delete reset record
+    db.prepare("DELETE FROM password_resets WHERE email = ?").run(email.toLowerCase());
+
+    res.json({ 
+      success: true, 
+      message: "Password reset successfully. Please login with your new password."
+    });
+  } catch (error) {
+    console.error("Reset password error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

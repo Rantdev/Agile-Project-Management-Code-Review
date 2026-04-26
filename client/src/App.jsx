@@ -15,6 +15,7 @@ import Team from "./pages/Team";
 import Profile from "./pages/Profile";
 import Performance from "./pages/Performance";
 import OTPVerification from "./pages/OTPVerification";
+import ForgotPassword from "./pages/ForgotPassword";
 
 const GOOGLE_CLIENT_ID = "106987871275-ait10kap6dlq0coeos96r3q2g62i53fs.apps.googleusercontent.com";
 
@@ -36,6 +37,7 @@ function App() {
           <Route path="/team/:id" element={<ProtectedRoute><Team /></ProtectedRoute>} />
           <Route path="/profile/:userId?" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/performance" element={<ProtectedRoute><Performance /></ProtectedRoute>} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
       </AuthProvider>
     </GoogleOAuthProvider>

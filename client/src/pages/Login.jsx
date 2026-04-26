@@ -37,6 +37,11 @@ const Login = () => {
           <div className="relative"><FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" /><input type={showPassword ? "text" : "password"} placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full pl-10 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required disabled={loading} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2">{showPassword ? <FiEyeOff /> : <FiEye />}</button></div>
           <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">{loading ? "Signing in..." : "Sign In"}</button>
         </form>
+        <div className="text-right">
+  <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700">
+    Forgot Password?
+  </Link>
+</div>
         <div className="flex items-center my-6"><hr className="flex-grow border-gray-300" /><span className="px-4 text-gray-400">OR</span><hr className="flex-grow border-gray-300" /></div>
         <div className="flex justify-center"><GoogleLogin onSuccess={handleGoogleSuccess} onError={() => {}} /></div>
         <p className="text-center text-gray-600 mt-6">Don't have an account? <Link to="/register" className="text-blue-600 font-semibold">Create Account</Link></p>

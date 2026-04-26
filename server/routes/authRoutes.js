@@ -6,7 +6,10 @@ const {
   getMe, 
   googleLogin,
   checkRoleSetup,
-  changePassword
+  changePassword,
+  forgotPassword,
+  verifyResetOTP,
+  resetPassword
 } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 
@@ -19,5 +22,9 @@ router.post("/google", googleLogin);
 router.get("/me", protect, getMe);
 router.get("/check-role-setup", protect, checkRoleSetup);
 router.put("/change-password", protect, changePassword);
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-reset-otp", verifyResetOTP);
+router.post("/reset-password", resetPassword);
+
 
 module.exports = router;
