@@ -173,3 +173,48 @@ exports.checkRoleSetup = (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+// Change password
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ 
+      success: false, 
+      error: "Current password and new password are required" 
+    });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ 
+      success: false, 
+      error: "New password must be at least 6 characters" 
+    });
+  }
+
+  try {
+    const user = db.prepare("SELECT password FROM users WHERE id = ?").get(userId);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ 
+        success: false, 
+        error: "Current password is incorrect" 
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hashedPassword, userId);
+    
+    res.json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Password change error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

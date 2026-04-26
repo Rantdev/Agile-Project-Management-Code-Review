@@ -8,5 +8,5 @@ router.post("/login", login);
 router.post("/google", googleLogin);
 router.get("/me", protect, getMe);
 router.get("/check-role-setup", protect, checkRoleSetup);
-
+router.put("/change-password", protect, changePassword);
 module.exports = router;

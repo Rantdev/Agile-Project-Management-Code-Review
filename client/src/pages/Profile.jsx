@@ -6,8 +6,7 @@ import api from "../services/api";
 import toast from "react-hot-toast";
 import { 
   FiUser, FiMail, FiPhone, FiMapPin, FiGithub, FiLinkedin, 
-  FiEdit2, FiSave, FiX, FiCode, FiPlus, FiTrash2, FiBriefcase, 
-  FiGlobe, FiTwitter, FiInstagram, FiAward, FiCalendar
+  FiEdit2, FiSave, FiX, FiCode, FiPlus, FiTrash2, FiKey, FiLock
 } from "react-icons/fi";
 
 const Profile = () => {
@@ -17,9 +16,15 @@ const Profile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [form, setForm] = useState({});
   const [newSkill, setNewSkill] = useState("");
-  const [newSkillLevel, setNewSkillLevel] = useState("Intermediate");
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const targetUserId = userId || user?.id;
 
@@ -65,14 +70,58 @@ const Profile = () => {
     }
   };
 
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    
+    if (!passwordForm.currentPassword) {
+      toast.error("Please enter your current password");
+      return;
+    }
+    
+    if (!passwordForm.newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+    
+    if (passwordForm.newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters");
+      return;
+    }
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await api.put("/auth/change-password", {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      });
+      
+      toast.success("Password changed successfully!");
+      setShowPasswordModal(false);
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      });
+    } catch (error) {
+      console.error("Password change error:", error);
+      toast.error(error.response?.data?.error || "Failed to change password");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const addSkill = () => {
     if (newSkill.trim()) {
       setForm({
         ...form,
-        skills: [...(form.skills || []), { name: newSkill.trim(), level: newSkillLevel }]
+        skills: [...(form.skills || []), { name: newSkill.trim(), level: "Intermediate" }]
       });
       setNewSkill("");
-      setNewSkillLevel("Intermediate");
     }
   };
 
@@ -81,7 +130,7 @@ const Profile = () => {
     setForm({ ...form, skills: updatedSkills });
   };
 
-  const skillLevels = ["Beginner", "Intermediate", "Advanced", "Expert"];
+  const isOwnProfile = !userId || userId == user?.id;
 
   if (loading) {
     return (
@@ -140,23 +189,32 @@ const Profile = () => {
                     <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                       {profile.role || "Team Member"}
                     </span>
-                    <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 flex items-center gap-1">
-                      <FiCalendar size={12} /> Member since {new Date(profile.created_at).getFullYear()}
-                    </span>
                   </div>
                 </div>
-                {!editing ? (
-                  <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">
-                    <FiEdit2 /> Edit Profile
-                  </button>
-                ) : (
+                {isOwnProfile && (
                   <div className="flex gap-2">
-                    <button onClick={() => { setEditing(false); setForm(profile); }} className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50">
-                      <FiX /> Cancel
-                    </button>
-                    <button onClick={handleUpdate} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
-                      <FiSave /> Save
-                    </button>
+                    {!editing && (
+                      <button
+                        onClick={() => setShowPasswordModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition"
+                      >
+                        <FiKey /> Change Password
+                      </button>
+                    )}
+                    {!editing ? (
+                      <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">
+                        <FiEdit2 /> Edit Profile
+                      </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditing(false); setForm(profile); }} className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50">
+                          <FiX /> Cancel
+                        </button>
+                        <button onClick={handleUpdate} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
+                          <FiSave /> Save
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -211,25 +269,6 @@ const Profile = () => {
                 )}
               </div>
 
-              {(profile.department || editing) && (
-                <div className="mt-4 pt-4 border-t">
-                  <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <FiBriefcase /> Department
-                  </h3>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={form.department || ""}
-                      onChange={(e) => setForm({ ...form, department: e.target.value })}
-                      placeholder="Department"
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  ) : (
-                    <p className="text-gray-600">{profile.department}</p>
-                  )}
-                </div>
-              )}
-
               {/* Social Links */}
               <div className="mt-4 pt-4 border-t">
                 <h3 className="font-semibold text-gray-700 mb-2">Social Links</h3>
@@ -276,7 +315,7 @@ const Profile = () => {
             {/* Bio Card */}
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <FiGlobe className="text-green-500" /> About
+                About
               </h2>
               {editing ? (
                 <textarea
@@ -289,23 +328,6 @@ const Profile = () => {
               ) : (
                 <p className="text-gray-600 leading-relaxed">{profile.bio || "No bio added yet"}</p>
               )}
-
-              {/* Stats */}
-              <div className="mt-4 pt-4 border-t">
-                <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <FiAward className="text-yellow-500" /> Statistics
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-2 bg-blue-50 rounded-lg">
-                    <p className="text-xl font-bold text-blue-600">{profile.stats?.projects || 0}</p>
-                    <p className="text-xs text-gray-500">Projects</p>
-                  </div>
-                  <div className="text-center p-2 bg-green-50 rounded-lg">
-                    <p className="text-xl font-bold text-green-600">{profile.stats?.tasks || 0}</p>
-                    <p className="text-xs text-gray-500">Tasks</p>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Skills Card */}
@@ -316,7 +338,7 @@ const Profile = () => {
               
               {editing && (
                 <div className="mb-4 p-3 bg-gray-50 rounded-xl">
-                  <div className="flex gap-2 mb-2">
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       value={newSkill}
@@ -324,13 +346,6 @@ const Profile = () => {
                       placeholder="Skill name"
                       className="flex-1 px-3 py-2 border rounded-lg text-sm"
                     />
-                    <select
-                      value={newSkillLevel}
-                      onChange={(e) => setNewSkillLevel(e.target.value)}
-                      className="px-3 py-2 border rounded-lg text-sm"
-                    >
-                      {skillLevels.map(level => <option key={level}>{level}</option>)}
-                    </select>
                     <button onClick={addSkill} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                       <FiPlus />
                     </button>
@@ -344,14 +359,7 @@ const Profile = () => {
                     <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
                       <div>
                         <span className="font-medium text-gray-800">{skill.name}</span>
-                        <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
-                          skill.level === "Expert" ? "bg-purple-100 text-purple-700" :
-                          skill.level === "Advanced" ? "bg-blue-100 text-blue-700" :
-                          skill.level === "Intermediate" ? "bg-green-100 text-green-700" :
-                          "bg-gray-100 text-gray-700"
-                        }`}>
-                          {skill.level}
-                        </span>
+                        <span className="ml-2 text-xs text-gray-500">({skill.level})</span>
                       </div>
                       {editing && (
                         <button onClick={() => removeSkill(idx)} className="text-red-500 hover:text-red-700">
@@ -368,6 +376,96 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <FiLock /> Change Password
+              </h2>
+              <button 
+                onClick={() => setShowPasswordModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Current Password *
+                </label>
+                <div className="relative">
+                  <FiKey className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter current password"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password *
+                </label>
+                <div className="relative">
+                  <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Minimum 6 characters"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm New Password *
+                </label>
+                <div className="relative">
+                  <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Confirm new password"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {changingPassword ? "Changing..." : "Change Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
