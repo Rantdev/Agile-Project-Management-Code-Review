@@ -52,8 +52,10 @@ const initDB = () => {
         assignee TEXT NOT NULL,
         deadline DATE,
         status TEXT DEFAULT 'To Do',
+        created_by INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE
+        FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
 
@@ -70,7 +72,7 @@ const initDB = () => {
       )
     `);
 
-    // Chat messages table - ADD THIS
+    // Chat messages table
     db.exec(`
       CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,36 +80,23 @@ const initDB = () => {
         user_id INTEGER NOT NULL,
         user_name TEXT NOT NULL,
         user_email TEXT NOT NULL,
-        user_avatar TEXT,
         message TEXT NOT NULL,
-        file_url TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
-// Password resets table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS password_resets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    otp_code TEXT NOT NULL,
-    reset_token TEXT,
-    is_used INTEGER DEFAULT 0,
-    expires_at DATETIME NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
-  )
-`);
-    // User skills table
+
+    // Password resets table
     db.exec(`
-      CREATE TABLE IF NOT EXISTS user_skills (
+      CREATE TABLE IF NOT EXISTS password_resets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        skill_name TEXT NOT NULL,
-        skill_level TEXT DEFAULT 'Beginner',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        email TEXT NOT NULL,
+        otp_code TEXT NOT NULL,
+        reset_token TEXT,
+        is_used INTEGER DEFAULT 0,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
