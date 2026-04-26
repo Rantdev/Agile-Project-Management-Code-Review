@@ -103,6 +103,37 @@ exports.updateProject = (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+// Get all projects for user (owner + team member)
+exports.getProjects = (req, res) => {
+  const userId = req.user.id;
+  const userEmail = req.user.email;
+
+  console.log(`Fetching projects for user: ${userId}, email: ${userEmail}`);
+
+  try {
+    // Get projects where user is owner OR team member
+    const projects = db.prepare(`
+      SELECT DISTINCT 
+        p.id, p.title, p.description, p.status, p.created_by, p.created_at,
+        CASE 
+          WHEN p.created_by = ? THEN 'owner' 
+          ELSE 'member' 
+        END as role,
+        (SELECT COUNT(*) FROM team_members WHERE project_id = p.id) as team_count,
+        (SELECT COUNT(*) FROM stories WHERE project_id = p.id) as story_count
+      FROM projects p
+      LEFT JOIN team_members tm ON p.id = tm.project_id
+      WHERE p.created_by = ? OR tm.user_email = ?
+      ORDER BY p.created_at DESC
+    `).all(userId, userId, userEmail);
+    
+    console.log(`Found ${projects.length} projects for user`);
+    res.json({ success: true, projects: projects || [] });
+  } catch (err) {
+    console.error("Error fetching projects:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
 
 // @desc    Delete project
 exports.deleteProject = (req, res) => {

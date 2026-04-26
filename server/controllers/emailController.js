@@ -81,6 +81,74 @@ exports.sendOTPEmail = async (to, otpCode, userName) => {
     return false;
   }
 };
+// Send email when user is added to team
+exports.sendTeamMemberEmail = async (toEmail, projectName, role, addedByName) => {
+  console.log(`📧 Sending team invitation to: ${toEmail}`);
+
+  const subject = `You've been added to a project - AgileFlow`;
+  const text = `
+Hello,
+
+You have been added as a "${role}" to the project "${projectName}" by ${addedByName}.
+
+You can now view and collaborate on this project in AgileFlow.
+
+Login to your account to get started: ${process.env.CLIENT_URL || "https://agile-project-management-code-review-1.onrender.com"}
+
+Best regards,
+AgileFlow Team
+  `;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Team Invitation - AgileFlow</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        .container { max-width: 500px; margin: 50px auto; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .content { padding: 40px 30px; }
+        .project-name { font-size: 24px; font-weight: bold; color: #667eea; margin: 10px 0; }
+        .role-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 5px 15px; border-radius: 20px; font-size: 14px; }
+        .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin-top: 20px; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #718096; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header"><h1>🏆 AgileFlow</h1><p>Project Management Tool</p></div>
+        <div class="content">
+          <h2>Hello!</h2>
+          <p>You have been added to the project:</p>
+          <div class="project-name">"${projectName}"</div>
+          <p>Your role: <span class="role-badge">${role}</span></p>
+          <p>Added by: <strong>${addedByName}</strong></p>
+          <a href="${process.env.CLIENT_URL || 'https://agile-project-management-code-review-1.onrender.com'}" class="button">Go to Dashboard</a>
+        </div>
+        <div class="footer"><p>&copy; 2024 AgileFlow. All rights reserved.</p></div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: `"AgileFlow" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: subject,
+      text: text,
+      html: htmlContent,
+    });
+    console.log(`✅ Team invitation email sent to ${toEmail}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Team email error:", error.message);
+    return false;
+  }
+};
 
 // Send task email
 exports.sendTaskEmail = async (to, subject, text) => {
