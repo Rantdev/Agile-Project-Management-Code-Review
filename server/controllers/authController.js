@@ -12,6 +12,8 @@ const generateToken = (id, email) => {
 exports.register = async (req, res) => {
   const { name, email, password } = req.body;
 
+  console.log("📝 Register attempt:", email);
+
   if (!name || !email || !password) {
     return res.status(400).json({ 
       success: false, 
@@ -40,18 +42,17 @@ exports.register = async (req, res) => {
     ).run(name, email.toLowerCase(), hashedPassword);
 
     const token = generateToken(result.lastInsertRowid, email);
+    
+    // Get the created user
+    const newUser = db.prepare("SELECT id, name, email, role FROM users WHERE id = ?").get(result.lastInsertRowid);
+
+    console.log("✅ User registered successfully:", newUser);
 
     res.status(201).json({
       success: true,
       message: "Registration successful",
       token,
-      user: { 
-        id: result.lastInsertRowid, 
-        name, 
-        email: email.toLowerCase(),
-        role: 'member',
-        isVerified: true
-      },
+      user: newUser,
     });
   } catch (error) {
     console.error("Register error:", error);
@@ -62,6 +63,8 @@ exports.register = async (req, res) => {
 // Login user
 exports.login = (req, res) => {
   const { email, password } = req.body;
+
+  console.log("📝 Login attempt:", email);
 
   if (!email || !password) {
     return res.status(400).json({ 
@@ -74,16 +77,20 @@ exports.login = (req, res) => {
     const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email.toLowerCase());
     
     if (!user) {
+      console.log("❌ User not found:", email);
       return res.status(401).json({ success: false, error: "Invalid credentials" });
     }
 
     bcrypt.compare(password, user.password, (err, isMatch) => {
       if (!isMatch) {
+        console.log("❌ Invalid password for:", email);
         return res.status(401).json({ success: false, error: "Invalid credentials" });
       }
 
       const token = generateToken(user.id, user.email);
       const { password: _, ...userWithoutPassword } = user;
+      
+      console.log("✅ Login successful for:", email);
 
       res.json({
         success: true,
@@ -100,20 +107,25 @@ exports.login = (req, res) => {
 
 // Get current user
 exports.getMe = (req, res) => {
+  console.log("📝 Get current user, ID:", req.user.id);
+  
   try {
     const user = db.prepare("SELECT id, name, email, role FROM users WHERE id = ?").get(req.user.id);
     
     if (!user) {
+      console.log("❌ User not found in database:", req.user.id);
       return res.status(404).json({ success: false, error: "User not found" });
     }
     
+    console.log("✅ User found:", user);
     res.json({ success: true, user });
   } catch (error) {
+    console.error("Get me error:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Google Login - UPDATED with better error handling
+// Google Login
 exports.googleLogin = async (req, res) => {
   const { token } = req.body;
 
@@ -127,7 +139,6 @@ exports.googleLogin = async (req, res) => {
   }
 
   try {
-    // Verify Google token
     const response = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${token}`);
     const payload = await response.json();
 
@@ -139,7 +150,7 @@ exports.googleLogin = async (req, res) => {
       });
     }
 
-    const { email, name, picture } = payload;
+    const { email, name } = payload;
     console.log("✅ Google user verified:", { email, name });
 
     // Check if user exists
@@ -159,10 +170,10 @@ exports.googleLogin = async (req, res) => {
       const userId = result.lastInsertRowid;
       const jwtToken = generateToken(userId, email);
       
-      console.log("✅ New Google user created with ID:", userId);
-      
       // Get the created user
       const newUser = db.prepare("SELECT id, name, email, role FROM users WHERE id = ?").get(userId);
+      
+      console.log("✅ New Google user created:", newUser);
       
       return res.json({
         success: true,
@@ -195,9 +206,10 @@ exports.googleLogin = async (req, res) => {
 
 // Check role setup
 exports.checkRoleSetup = (req, res) => {
+  console.log("📝 Check role setup for user:", req.user.id);
+  
   try {
     const user = db.prepare("SELECT role FROM users WHERE id = ?").get(req.user.id);
-    // User needs role setup if role is null, 'member', or undefined
     const needsRoleSetup = !user || !user.role || user.role === 'member';
     console.log(`User ${req.user.id} - Role: ${user?.role}, Needs setup: ${needsRoleSetup}`);
     res.json({ success: true, needsRoleSetup });
@@ -207,7 +219,7 @@ exports.checkRoleSetup = (req, res) => {
   }
 };
 
-// Check if user needs OTP (simplified - always return false)
+// Check if user needs OTP
 exports.checkNeedsOTP = (req, res) => {
   const { email } = req.body;
 
@@ -222,7 +234,7 @@ exports.checkNeedsOTP = (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // For now, always return needsOTP false (no OTP required)
+    // Always return false (no OTP required)
     res.json({ success: true, needsOTP: false, isVerified: true });
   } catch (error) {
     console.error("Check needs OTP error:", error);

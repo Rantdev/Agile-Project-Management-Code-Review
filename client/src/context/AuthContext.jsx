@@ -15,13 +15,17 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
     
+    console.log("🔐 Auth Check - Token:", token ? "Present" : "Missing");
+    console.log("🔐 Auth Check - Saved User:", savedUser);
+    
     if (token && savedUser) {
       try {
         const userData = JSON.parse(savedUser);
         setUser(userData);
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        checkRoleSetup();
+        verifyUser();
       } catch (error) {
+        console.error("Failed to parse user:", error);
         localStorage.clear();
         setLoading(false);
       }
@@ -30,11 +34,28 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const verifyUser = async () => {
+    try {
+      const res = await api.get("/auth/me");
+      console.log("✅ Verified user:", res.data.user);
+      setUser(res.data.user);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      checkRoleSetup();
+    } catch (error) {
+      console.error("Token verification failed:", error);
+      localStorage.clear();
+      setUser(null);
+      setLoading(false);
+    }
+  };
+
   const checkRoleSetup = async () => {
     try {
       const res = await api.get("/auth/check-role-setup");
+      console.log("Role check response:", res.data);
       setNeedsRoleSetup(res.data.needsRoleSetup);
     } catch (error) {
+      console.error("Role check failed:", error);
       setNeedsRoleSetup(true);
     } finally {
       setLoading(false);
@@ -44,6 +65,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const res = await api.post("/auth/login", { email, password });
+      console.log("Login response:", res.data);
+      
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(res.data.user));
@@ -55,6 +78,7 @@ export const AuthProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
+      console.error("Login error:", error);
       toast.error(error.response?.data?.error || "Login failed");
       return false;
     }
@@ -62,7 +86,10 @@ export const AuthProvider = ({ children }) => {
 
   const googleLogin = async (credential) => {
     try {
+      console.log("Sending Google token to backend...");
       const res = await api.post("/auth/google", { token: credential });
+      console.log("Google login response:", res.data);
+      
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(res.data.user));
@@ -74,7 +101,8 @@ export const AuthProvider = ({ children }) => {
       }
       return { success: false };
     } catch (error) {
-      toast.error("Google login failed");
+      console.error("Google login error:", error);
+      toast.error(error.response?.data?.error || "Google login failed");
       return { success: false };
     }
   };
@@ -82,6 +110,8 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password) => {
     try {
       const res = await api.post("/auth/register", { name, email, password });
+      console.log("Register response:", res.data);
+      
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(res.data.user));
@@ -93,6 +123,7 @@ export const AuthProvider = ({ children }) => {
       }
       return { success: false };
     } catch (error) {
+      console.error("Registration error:", error);
       toast.error(error.response?.data?.error || "Registration failed");
       return { success: false };
     }
@@ -103,9 +134,10 @@ export const AuthProvider = ({ children }) => {
       const res = await api.post("/profile/setup-role", roleData);
       if (res.data.success) {
         setNeedsRoleSetup(false);
-        const userRes = await api.get("/auth/me");
-        setUser(userRes.data.user);
-        localStorage.setItem("user", JSON.stringify(userRes.data.user));
+        if (res.data.user) {
+          setUser(res.data.user);
+          localStorage.setItem("user", JSON.stringify(res.data.user));
+        }
         toast.success("Profile setup complete!");
         return true;
       }
@@ -126,7 +158,14 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, loading, needsRoleSetup, login, register, googleLogin, completeRoleSetup, logout
+      user, 
+      loading, 
+      needsRoleSetup,
+      login, 
+      register,
+      googleLogin,
+      completeRoleSetup,
+      logout 
     }}>
       {children}
     </AuthContext.Provider>

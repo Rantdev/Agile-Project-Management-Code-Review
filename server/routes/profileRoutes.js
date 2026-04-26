@@ -118,11 +118,7 @@ router.put("/:userId", (req, res) => {
     updateValues.push(linkedin);
   }
 
-  if (updateFields.length === 0 && (!skills || skills.length === 0)) {
-    return res.json({ success: true, message: "No changes made" });
-  }
-
-  // Update profile fields if any
+  // First, update profile fields
   if (updateFields.length > 0) {
     updateFields.push("updated_at = CURRENT_TIMESTAMP");
     updateValues.push(userId);
@@ -231,6 +227,61 @@ router.post("/setup-role", (req, res) => {
           user: user
         });
       });
+    }
+  );
+});
+
+// Add a single skill
+router.post("/:userId/skills", (req, res) => {
+  const { userId } = req.params;
+  const { skillName, skillLevel } = req.body;
+  const currentUserId = req.user.id;
+
+  if (parseInt(currentUserId) !== parseInt(userId)) {
+    return res.status(403).json({ success: false, error: "Permission denied" });
+  }
+
+  if (!skillName || !skillName.trim()) {
+    return res.status(400).json({ success: false, error: "Skill name is required" });
+  }
+
+  db.run(
+    "INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)",
+    [userId, skillName.trim(), skillLevel || 'Intermediate'],
+    function(err) {
+      if (err) {
+        console.error("❌ Error adding skill:", err.message);
+        return res.status(500).json({ success: false, error: err.message });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: "Skill added successfully",
+        skill: { id: this.lastID, name: skillName, level: skillLevel || 'Intermediate' }
+      });
+    }
+  );
+});
+
+// Remove a skill
+router.delete("/:userId/skills/:skillId", (req, res) => {
+  const { userId, skillId } = req.params;
+  const currentUserId = req.user.id;
+
+  if (parseInt(currentUserId) !== parseInt(userId)) {
+    return res.status(403).json({ success: false, error: "Permission denied" });
+  }
+
+  db.run(
+    "DELETE FROM user_skills WHERE id = ? AND user_id = ?",
+    [skillId, userId],
+    function(err) {
+      if (err) {
+        console.error("❌ Error removing skill:", err.message);
+        return res.status(500).json({ success: false, error: err.message });
+      }
+
+      res.json({ success: true, message: "Skill removed successfully" });
     }
   );
 });
