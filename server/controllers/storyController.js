@@ -7,24 +7,35 @@ exports.getStoriesByProject = (req, res) => {
   console.log("Fetching stories for project:", projectId);
 
   try {
+    // First check if project exists
+    const project = db.prepare("SELECT id FROM projects WHERE id = ?").get(projectId);
+    if (!project) {
+      return res.status(404).json({ success: false, error: "Project not found" });
+    }
+
+    // Get all stories for the project
     const stories = db.prepare(`
       SELECT * FROM stories WHERE project_id = ? ORDER BY created_at DESC
     `).all(projectId);
     
-    // Get tasks for each story
+    console.log(`Found ${stories.length} stories`);
+
+    // For each story, get its tasks
     for (const story of stories) {
       const tasks = db.prepare(`
-        SELECT id, title, status, assignee, deadline 
-        FROM tasks WHERE story_id = ? 
-        ORDER BY deadline ASC
+        SELECT id, title, status, assignee, deadline, created_at 
+        FROM tasks 
+        WHERE story_id = ? 
+        ORDER BY created_at DESC
       `).all(story.id);
       
       story.tasks = tasks || [];
       story.taskCount = tasks.length;
       story.completedTasks = tasks.filter(t => t.status === "Done").length;
+      
+      console.log(`Story ${story.id} has ${tasks.length} tasks`);
     }
     
-    console.log(`Found ${stories.length} stories with tasks`);
     res.json({ success: true, stories: stories || [] });
   } catch (err) {
     console.error("Error fetching stories:", err.message);
@@ -36,7 +47,7 @@ exports.getStoriesByProject = (req, res) => {
 exports.getStoryById = (req, res) => {
   const { id } = req.params;
 
-  console.log("Fetching story details:", id);
+  console.log("Fetching story details for ID:", id);
 
   try {
     const story = db.prepare(`
@@ -58,6 +69,7 @@ exports.getStoryById = (req, res) => {
     story.taskCount = tasks.length;
     story.completedTasks = tasks.filter(t => t.status === "Done").length;
     
+    console.log(`Story ${id} has ${story.taskCount} tasks`);
     res.json({ success: true, story });
   } catch (err) {
     console.error("Error fetching story:", err.message);
@@ -123,6 +135,7 @@ exports.deleteStory = (req, res) => {
   const { id } = req.params;
 
   try {
+    // Tasks will be deleted automatically due to CASCADE foreign key
     db.prepare(`DELETE FROM stories WHERE id = ?`).run(id);
     res.json({ success: true, message: "Story deleted successfully" });
   } catch (err) {
