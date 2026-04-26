@@ -113,19 +113,31 @@ export const AuthProvider = ({ children }) => {
 
   const completeRoleSetup = async (roleData) => {
     try {
+      console.log("Sending role setup data:", roleData);
       const res = await api.post("/profile/setup-role", roleData);
+      console.log("Role setup response:", res.data);
+      
       if (res.data.success) {
         setNeedsRoleSetup(false);
+        // Update user with new role
         if (res.data.user) {
           setUser(res.data.user);
           localStorage.setItem("user", JSON.stringify(res.data.user));
+        } else {
+          const userRes = await api.get("/auth/me");
+          setUser(userRes.data.user);
+          localStorage.setItem("user", JSON.stringify(userRes.data.user));
         }
         toast.success("Profile setup complete!");
         return true;
+      } else {
+        toast.error(res.data.error || "Setup failed");
+        return false;
       }
-      return false;
     } catch (error) {
-      toast.error(error.response?.data?.error || "Setup failed");
+      console.error("Role setup error:", error);
+      const errorMsg = error.response?.data?.error || "Setup failed. Please try again.";
+      toast.error(errorMsg);
       return false;
     }
   };
@@ -139,7 +151,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, needsRoleSetup, login, register, googleLogin, completeRoleSetup, logout }}>
+    <AuthContext.Provider value={{ 
+      user, loading, needsRoleSetup, login, register, googleLogin, completeRoleSetup, logout
+    }}>
       {children}
     </AuthContext.Provider>
   );
