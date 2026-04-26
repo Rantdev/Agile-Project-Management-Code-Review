@@ -4,6 +4,7 @@ const initDB = () => {
   console.log("Initializing database...");
 
   try {
+    // Users table
     db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,6 +17,7 @@ const initDB = () => {
       )
     `);
 
+    // Projects table
     db.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,6 +30,7 @@ const initDB = () => {
       )
     `);
 
+    // Stories table
     db.exec(`
       CREATE TABLE IF NOT EXISTS stories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,18 +42,8 @@ const initDB = () => {
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
       )
     `);
-    // OTP codes table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS otp_codes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    otp_code TEXT NOT NULL,
-    expires_at DATETIME NOT NULL,
-    is_used INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
 
+    // Tasks table
     db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,6 +57,7 @@ db.exec(`
       )
     `);
 
+    // Team members table
     db.exec(`
       CREATE TABLE IF NOT EXISTS team_members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,6 +70,7 @@ db.exec(`
       )
     `);
 
+    // Chat messages table - ADD THIS
     db.exec(`
       CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,13 +78,16 @@ db.exec(`
         user_id INTEGER NOT NULL,
         user_name TEXT NOT NULL,
         user_email TEXT NOT NULL,
+        user_avatar TEXT,
         message TEXT NOT NULL,
+        file_url TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
+    // User skills table
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_skills (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
