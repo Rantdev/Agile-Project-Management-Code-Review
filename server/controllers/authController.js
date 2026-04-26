@@ -204,19 +204,28 @@ exports.googleLogin = async (req, res) => {
   }
 };
 
-// Check role setup
+// Check role setup - FIXED VERSION
 exports.checkRoleSetup = (req, res) => {
-  console.log("📝 Check role setup for user:", req.user.id);
+  const userId = req.user.id;
   
-  try {
-    const user = db.prepare("SELECT role FROM users WHERE id = ?").get(req.user.id);
-    const needsRoleSetup = !user || !user.role || user.role === 'member';
-    console.log(`User ${req.user.id} - Role: ${user?.role}, Needs setup: ${needsRoleSetup}`);
+  console.log("Checking role setup for user:", userId);
+  
+  db.get("SELECT role FROM users WHERE id = ?", [userId], (err, user) => {
+    if (err) {
+      console.error("Database error:", err.message);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    
+    if (!user) {
+      console.log("User not found:", userId);
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+    
+    const needsRoleSetup = !user.role || user.role === 'member';
+    console.log(`User ${userId} - Role: ${user.role}, Needs setup: ${needsRoleSetup}`);
+    
     res.json({ success: true, needsRoleSetup });
-  } catch (error) {
-    console.error("Role check error:", error);
-    res.json({ success: true, needsRoleSetup: true });
-  }
+  });
 };
 
 // Check if user needs OTP
