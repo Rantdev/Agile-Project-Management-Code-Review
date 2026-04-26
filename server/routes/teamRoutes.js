@@ -5,6 +5,14 @@ const db = require("../config/db");
 
 router.use(protect);
 
+const router = express.Router();
+const { protect } = require("../middleware/auth");
+const { addMember, getMembers, deleteMember } = require("../controllers/teamController");
+
+router.post("/", addMember);
+router.get("/project/:projectId", getMembers);
+router.delete("/:id", deleteMember);
+
 router.get("/project/:projectId", (req, res) => {
   try {
     const members = db.prepare("SELECT * FROM team_members WHERE project_id = ?").all(req.params.projectId);
