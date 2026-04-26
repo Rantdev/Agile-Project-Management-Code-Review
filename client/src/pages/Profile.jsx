@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Layout/Sidebar";
 import api from "../services/api";
 import toast from "react-hot-toast";
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiSave, FiX, FiCode, FiPlus, FiTrash2, FiGithub, FiLinkedin } from "react-icons/fi";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiSave, FiX, FiCode, FiPlus, FiTrash2 } from "react-icons/fi";
 
 const Profile = () => {
   const { userId } = useParams();
@@ -15,7 +15,6 @@ const Profile = () => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [newSkill, setNewSkill] = useState("");
-  const [updating, setUpdating] = useState(false);
 
   const targetUserId = userId || user?.id;
 
@@ -24,71 +23,43 @@ const Profile = () => {
       navigate("/");
       return;
     }
-    
-    if (targetUserId) {
-      fetchProfile();
-    }
+    if (targetUserId) fetchProfile();
   }, [targetUserId, user]);
 
   const fetchProfile = async () => {
     try {
-      setLoading(true);
-      console.log("Fetching profile for user:", targetUserId);
       const res = await api.get(`/profile/${targetUserId}`);
-      
       if (res.data.success) {
         setProfile(res.data.profile);
-        setForm({
-          ...res.data.profile,
-          skills: res.data.profile.skills || []
-        });
-      } else {
-        toast.error(res.data.error || "Failed to load profile");
+        setForm({ ...res.data.profile, skills: res.data.profile.skills || [] });
       }
     } catch (error) {
-      console.error("Profile fetch error:", error);
-      if (error.response?.status === 401) {
-        logout();
-        navigate("/");
-      } else if (error.response?.status === 404) {
-        toast.error("User profile not found");
-      } else {
-        toast.error("Failed to load profile");
-      }
+      if (error.response?.status === 401) logout();
+      else toast.error("Failed to load profile");
     } finally {
       setLoading(false);
     }
   };
 
   const handleUpdate = async () => {
-    setUpdating(true);
     try {
-      const updateData = {
+      await api.put(`/profile/${targetUserId}`, {
         name: form.name,
-        bio: form.bio || "",
-        phone: form.phone || "",
-        location: form.location || "",
-        github: form.github || "",
-        linkedin: form.linkedin || "",
+        phone: form.phone,
+        location: form.location,
         skills: form.skills || []
-      };
-      
-      await api.put(`/profile/${targetUserId}`, updateData);
-      toast.success("Profile updated successfully");
+      });
+      toast.success("Profile updated");
       setEditing(false);
       fetchProfile();
     } catch (error) {
-      console.error("Update error:", error);
-      toast.error(error.response?.data?.error || "Update failed");
-    } finally {
-      setUpdating(false);
+      toast.error("Update failed");
     }
   };
 
   const addSkill = () => {
     if (newSkill.trim()) {
-      const newSkillObj = { name: newSkill.trim(), level: "Intermediate" };
-      setForm({ ...form, skills: [...(form.skills || []), newSkillObj] });
+      setForm({ ...form, skills: [...(form.skills || []), { name: newSkill.trim(), level: "Intermediate" }] });
       setNewSkill("");
     }
   };
@@ -114,17 +85,7 @@ const Profile = () => {
       <div className="flex">
         <Sidebar />
         <div className="flex-1 ml-64 p-8">
-          <div className="text-center py-12 bg-white rounded-xl shadow-sm">
-            <FiUser className="text-6xl text-gray-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Profile Not Found</h2>
-            <p className="text-gray-500 mb-4">Unable to load profile information</p>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Back to Dashboard
-            </button>
-          </div>
+          <div className="text-center py-12">Profile not found</div>
         </div>
       </div>
     );
@@ -140,17 +101,12 @@ const Profile = () => {
             <div className="px-8 pb-8 relative">
               <div className="flex justify-between items-start">
                 <div className="flex items-end -mt-12">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full border-4 border-white overflow-hidden flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 text-white text-3xl font-bold">
+                  <div className="w-24 h-24 bg-gray-200 rounded-full border-4 border-white flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 text-white text-3xl font-bold">
                     {profile.name?.charAt(0).toUpperCase()}
                   </div>
                   <div className="ml-4">
                     {editing ? (
-                      <input
-                        type="text"
-                        value={form.name || ""}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        className="border rounded px-2 py-1 text-xl font-bold"
-                      />
+                      <input type="text" value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} className="border rounded px-2 py-1 text-xl" />
                     ) : (
                       <h1 className="text-2xl font-bold text-gray-800">{profile.name}</h1>
                     )}
@@ -160,30 +116,11 @@ const Profile = () => {
                   </div>
                 </div>
                 {!editing ? (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    <FiEdit2 /> Edit Profile
-                  </button>
+                  <button onClick={() => setEditing(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg"><FiEdit2 /> Edit</button>
                 ) : (
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setEditing(false);
-                        setForm(profile);
-                      }}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      <FiX /> Cancel
-                    </button>
-                    <button
-                      onClick={handleUpdate}
-                      disabled={updating}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                      <FiSave /> {updating ? "Saving..." : "Save"}
-                    </button>
+                    <button onClick={() => { setEditing(false); setForm(profile); }} className="px-4 py-2 border rounded-lg"><FiX /> Cancel</button>
+                    <button onClick={handleUpdate} className="px-4 py-2 bg-green-600 text-white rounded-lg"><FiSave /> Save</button>
                   </div>
                 )}
               </div>
@@ -192,137 +129,37 @@ const Profile = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Contact Information</h2>
+              <h2 className="text-lg font-semibold mb-4">Contact Information</h2>
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <FiMail className="text-gray-400" />
-                  <span>{profile.email}</span>
-                </div>
+                <div className="flex items-center gap-3"><FiMail /><span>{profile.email}</span></div>
                 {editing ? (
-                  <div className="flex items-center gap-3">
-                    <FiPhone className="text-gray-400" />
-                    <input
-                      type="tel"
-                      value={form.phone || ""}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="Phone number"
-                      className="flex-1 px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                ) : profile.phone && (
-                  <div className="flex items-center gap-3">
-                    <FiPhone className="text-gray-400" />
-                    <span>{profile.phone}</span>
-                  </div>
-                )}
+                  <div className="flex items-center gap-3"><FiPhone /><input type="tel" value={form.phone || ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Phone" className="flex-1 px-3 py-2 border rounded" /></div>
+                ) : profile.phone && (<div className="flex items-center gap-3"><FiPhone /><span>{profile.phone}</span></div>)}
                 {editing ? (
-                  <div className="flex items-center gap-3">
-                    <FiMapPin className="text-gray-400" />
-                    <input
-                      type="text"
-                      value={form.location || ""}
-                      onChange={(e) => setForm({ ...form, location: e.target.value })}
-                      placeholder="Location"
-                      className="flex-1 px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                ) : profile.location && (
-                  <div className="flex items-center gap-3">
-                    <FiMapPin className="text-gray-400" />
-                    <span>{profile.location}</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="mt-4 pt-4 border-t">
-                <h3 className="font-semibold text-gray-700 mb-2">Social Links</h3>
-                {editing ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <FiGithub className="text-gray-400" />
-                      <input
-                        type="text"
-                        value={form.github || ""}
-                        onChange={(e) => setForm({ ...form, github: e.target.value })}
-                        placeholder="GitHub URL"
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <FiLinkedin className="text-gray-400" />
-                      <input
-                        type="text"
-                        value={form.linkedin || ""}
-                        onChange={(e) => setForm({ ...form, linkedin: e.target.value })}
-                        placeholder="LinkedIn URL"
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {profile.github && (
-                      <a href={profile.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
-                        <FiGithub /> GitHub
-                      </a>
-                    )}
-                    {profile.linkedin && (
-                      <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
-                        <FiLinkedin /> LinkedIn
-                      </a>
-                    )}
-                  </div>
-                )}
+                  <div className="flex items-center gap-3"><FiMapPin /><input type="text" value={form.location || ""} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" className="flex-1 px-3 py-2 border rounded" /></div>
+                ) : profile.location && (<div className="flex items-center gap-3"><FiMapPin /><span>{profile.location}</span></div>)}
               </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <FiCode /> Skills & Expertise
-              </h2>
-              
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FiCode /> Skills</h2>
               {editing && (
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newSkill}
-                      onChange={(e) => setNewSkill(e.target.value)}
-                      placeholder="Skill name (e.g., React)"
-                      className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                      onKeyPress={(e) => e.key === 'Enter' && addSkill()}
-                    />
-                    <button
-                      onClick={addSkill}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      <FiPlus />
-                    </button>
-                  </div>
+                <div className="mb-4 flex gap-2">
+                  <input type="text" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="New skill" className="flex-1 px-3 py-2 border rounded" />
+                  <button onClick={addSkill} className="px-3 py-2 bg-blue-600 text-white rounded"><FiPlus /></button>
                 </div>
               )}
-
-              {form.skills && form.skills.length > 0 ? (
+              {form.skills?.length > 0 ? (
                 <div className="space-y-2">
                   {form.skills.map((skill, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
-                      <div>
-                        <span className="font-medium text-gray-800">{skill.name}</span>
-                        <span className="ml-2 text-xs text-gray-500">({skill.level})</span>
-                      </div>
-                      {editing && (
-                        <button
-                          onClick={() => removeSkill(idx)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <FiTrash2 size={16} />
-                        </button>
-                      )}
+                    <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span>{skill.name} <span className="text-xs text-gray-500">({skill.level})</span></span>
+                      {editing && <button onClick={() => removeSkill(idx)} className="text-red-500"><FiTrash2 /></button>}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-4">No skills added yet</p>
+                <p className="text-gray-500 text-center py-4">No skills added</p>
               )}
             </div>
           </div>

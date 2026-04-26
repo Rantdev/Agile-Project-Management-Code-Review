@@ -28,18 +28,10 @@ const TaskBoard = ({ tasks, onTaskUpdate, canEdit = false, isOwner = false }) =>
           </h3>
           <div className="space-y-3">
             {statusTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onUpdate={onTaskUpdate}
-                canEdit={canEdit}
-                isOwner={isOwner}
-              />
+              <TaskCard key={task.id} task={task} onUpdate={onTaskUpdate} canEdit={canEdit} isOwner={isOwner} />
             ))}
             {statusTasks.length === 0 && (
-              <p className="text-gray-400 text-center py-8 text-sm">
-                No tasks
-              </p>
+              <p className="text-gray-400 text-center py-8 text-sm">No tasks</p>
             )}
           </div>
         </div>

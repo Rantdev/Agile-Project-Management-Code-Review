@@ -13,7 +13,6 @@ const OTPVerification = () => {
   const [timer, setTimer] = useState(0);
   const email = location.state?.email || "";
   const password = location.state?.password || "";
-  const isNewUser = location.state?.isNewUser || false;
 
   useEffect(() => {
     if (!email) {
@@ -53,13 +52,11 @@ const OTPVerification = () => {
 
     setLoading(true);
     try {
-      // Verify OTP
       const res = await api.post("/otp/verify", { email, otpCode });
       
       if (res.data.success) {
         toast.success("Email verified successfully!");
         
-        // Login after verification
         const loginRes = await api.post("/auth/login", { email, password });
         
         if (loginRes.data.success) {
@@ -67,17 +64,10 @@ const OTPVerification = () => {
           localStorage.setItem("user", JSON.stringify(loginRes.data.user));
           localStorage.setItem("userId", loginRes.data.user.id);
           
-          // Check if role setup is needed
-          const roleCheck = await api.get("/auth/check-role-setup", {
-            headers: { Authorization: `Bearer ${loginRes.data.token}` }
-          });
+          api.defaults.headers.common['Authorization'] = `Bearer ${loginRes.data.token}`;
           
-          if (roleCheck.data.needsRoleSetup) {
-            toast.success("Please complete your profile setup");
-            navigate("/role-setup");
-          } else {
-            navigate("/dashboard");
-          }
+          toast.success("Login successful!");
+          navigate("/dashboard");
         }
       }
     } catch (error) {
@@ -124,9 +114,6 @@ const OTPVerification = () => {
 
         <form onSubmit={handleVerify} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Enter OTP Code
-            </label>
             <div className="relative">
               <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
@@ -147,7 +134,7 @@ const OTPVerification = () => {
                 type="button"
                 onClick={handleResendOTP}
                 disabled={resendLoading || timer > 0}
-                className="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                className="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 flex items-center gap-1"
               >
                 <FiRefreshCw className={resendLoading ? "animate-spin" : ""} />
                 {resendLoading ? "Sending..." : "Resend OTP"}
@@ -158,16 +145,9 @@ const OTPVerification = () => {
           <button
             type="submit"
             disabled={loading || otpCode.length !== 6}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50 shadow-md"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50"
           >
-            {loading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                Verifying...
-              </div>
-            ) : (
-              "Verify & Continue"
-            )}
+            {loading ? "Verifying..." : "Verify & Login"}
           </button>
 
           <button
@@ -178,13 +158,6 @@ const OTPVerification = () => {
             <FiArrowLeft /> Back to Login
           </button>
         </form>
-
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-xs text-gray-600 text-center">
-            Check your email for the verification code. 
-            If you don't see it, check your spam folder.
-          </p>
-        </div>
       </div>
     </div>
   );

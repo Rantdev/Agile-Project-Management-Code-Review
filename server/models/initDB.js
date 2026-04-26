@@ -4,7 +4,6 @@ const initDB = () => {
   console.log("Initializing database...");
 
   try {
-    // Users table
     db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,7 +16,6 @@ const initDB = () => {
       )
     `);
 
-    // Projects table
     db.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +28,6 @@ const initDB = () => {
       )
     `);
 
-    // Stories table
     db.exec(`
       CREATE TABLE IF NOT EXISTS stories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,8 +39,18 @@ const initDB = () => {
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
       )
     `);
+    // OTP codes table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS otp_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    otp_code TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    is_used INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
-    // Tasks table
     db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +64,6 @@ const initDB = () => {
       )
     `);
 
-    // Team members table
     db.exec(`
       CREATE TABLE IF NOT EXISTS team_members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +76,6 @@ const initDB = () => {
       )
     `);
 
-    // Chat messages table
     db.exec(`
       CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,20 +89,7 @@ const initDB = () => {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
-    // Add this to your initDB function
-// Add OTP codes table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS otp_codes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    otp_code TEXT NOT NULL,
-    expires_at DATETIME NOT NULL,
-    is_used INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
 
-    // User skills table
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_skills (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

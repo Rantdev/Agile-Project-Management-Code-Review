@@ -1,4 +1,4 @@
-import { FiEdit2, FiTrash2, FiCalendar, FiUser } from "react-icons/fi";
+import { FiTrash2, FiCalendar, FiUser } from "react-icons/fi";
 import toast from "react-hot-toast";
 import api from "../../services/api";
 
@@ -24,14 +24,13 @@ const TaskCard = ({ task, onUpdate, canEdit = false, isOwner = false }) => {
       toast.error("Only the Product Owner can delete tasks");
       return;
     }
-    
-    if (window.confirm("Are you sure you want to delete this task?")) {
+    if (window.confirm("Delete this task?")) {
       try {
         await api.delete(`/tasks/${task.id}`);
         toast.success("Task deleted");
         onUpdate();
       } catch (error) {
-        toast.error(error.response?.data?.error || "Failed to delete task");
+        toast.error("Failed to delete task");
       }
     }
   };
@@ -46,7 +45,6 @@ const TaskCard = ({ task, onUpdate, canEdit = false, isOwner = false }) => {
           </button>
         )}
       </div>
-
       <div className="space-y-2 text-sm">
         <div className="flex items-center gap-2 text-gray-600">
           <FiUser className="text-gray-400" size={14} />
@@ -59,14 +57,10 @@ const TaskCard = ({ task, onUpdate, canEdit = false, isOwner = false }) => {
           </div>
         )}
       </div>
-
       <div className="mt-3 flex justify-between items-center">
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[task.status]}`}
-        >
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[task.status]}`}>
           {task.status}
         </span>
-
         {canEdit && (
           <select
             value={task.status}

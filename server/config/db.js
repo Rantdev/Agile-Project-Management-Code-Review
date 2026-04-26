@@ -2,10 +2,8 @@ const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
 
-// Use Render's writable directory for production
 const dbPath = process.env.DB_PATH || path.join(__dirname, "../../database/agile.db");
 
-// Ensure directory exists
 const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });

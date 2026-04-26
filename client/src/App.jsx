@@ -13,6 +13,8 @@ import StoryTasks from "./pages/StoryTasks";
 import MyTasks from "./pages/MyTasks";
 import Team from "./pages/Team";
 import Profile from "./pages/Profile";
+import Performance from "./pages/Performance";
+import OTPVerification from "./pages/OTPVerification";
 
 const GOOGLE_CLIENT_ID = "106987871275-ait10kap6dlq0coeos96r3q2g62i53fs.apps.googleusercontent.com";
 
@@ -24,6 +26,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-otp" element={<OTPVerification />} />
           <Route path="/role-setup" element={<ProtectedRoute><RoleSetup /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
@@ -32,6 +35,7 @@ function App() {
           <Route path="/my-tasks" element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
           <Route path="/team/:id" element={<ProtectedRoute><Team /></ProtectedRoute>} />
           <Route path="/profile/:userId?" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/performance" element={<ProtectedRoute><Performance /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </GoogleOAuthProvider>
