@@ -150,19 +150,26 @@ exports.googleLogin = async (req, res) => {
   }
 };
 
+// Check role setup - FIXED for better-sqlite3
 exports.checkRoleSetup = (req, res) => {
   const userId = req.user.id;
   
-  db.get("SELECT role FROM users WHERE id = ?", [userId], (err, user) => {
-    if (err) {
-      return res.status(500).json({ success: false, error: err.message });
-    }
+  console.log("Checking role setup for user:", userId);
+  
+  try {
+    const user = db.prepare("SELECT role FROM users WHERE id = ?").get(userId);
     
     if (!user) {
+      console.log("User not found:", userId);
       return res.status(404).json({ success: false, error: "User not found" });
     }
     
     const needsRoleSetup = !user.role || user.role === 'member';
+    console.log(`User ${userId} - Role: ${user.role}, Needs setup: ${needsRoleSetup}`);
+    
     res.json({ success: true, needsRoleSetup });
-  });
+  } catch (err) {
+    console.error("Database error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 };

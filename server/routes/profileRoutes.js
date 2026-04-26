@@ -14,21 +14,23 @@ router.get("/:userId", (req, res) => {
     return res.status(403).json({ success: false, error: "You can only view your own profile" });
   }
 
-  db.get("SELECT id, name, email, role, created_at FROM users WHERE id = ?", [userId], (err, profile) => {
-    if (err) return res.status(500).json({ success: false, error: err.message });
-    if (!profile) return res.status(404).json({ success: false, error: "User not found" });
+  try {
+    const profile = db.prepare("SELECT id, name, email, role, created_at FROM users WHERE id = ?").get(userId);
     
-    db.all("SELECT id, skill_name as name, skill_level as level FROM user_skills WHERE user_id = ?", [userId], (err, skills) => {
-      profile.skills = skills || [];
-      res.json({ success: true, profile });
-    });
-  });
+    if (!profile) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+    
+    res.json({ success: true, profile });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Update user profile
 router.put("/:userId", (req, res) => {
   const { userId } = req.params;
-  const { name, phone, location, skills } = req.body;
+  const { name, phone, location } = req.body;
   const currentUserId = req.user.id;
 
   if (parseInt(currentUserId) !== parseInt(userId)) {
@@ -36,25 +38,19 @@ router.put("/:userId", (req, res) => {
   }
 
   try {
-    if (name) db.run("UPDATE users SET name = ? WHERE id = ?", name, userId);
-    if (phone) db.run("UPDATE users SET phone = ? WHERE id = ?", phone, userId);
-    if (location) db.run("UPDATE users SET location = ? WHERE id = ?", location, userId);
+    if (name) db.prepare("UPDATE users SET name = ? WHERE id = ?").run(name, userId);
+    if (phone) db.prepare("UPDATE users SET phone = ? WHERE id = ?").run(phone, userId);
+    if (location) db.prepare("UPDATE users SET location = ? WHERE id = ?").run(location, userId);
     
-    if (skills && Array.isArray(skills)) {
-      db.run("DELETE FROM user_skills WHERE user_id = ?", userId);
-      const stmt = db.prepare("INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)");
-      skills.forEach(skill => stmt.run(userId, skill.name, skill.level || "Intermediate"));
-      stmt.finalize();
-    }
     res.json({ success: true, message: "Profile updated successfully" });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Setup user role - FIXED VERSION
+// Setup user role
 router.post("/setup-role", (req, res) => {
-  const { role, department, skills } = req.body;
+  const { role, department } = req.body;
   const userId = req.user.id;
 
   console.log("Setting up role for user:", userId, "Role:", role);
@@ -67,63 +63,29 @@ router.post("/setup-role", (req, res) => {
     return res.status(400).json({ success: false, error: "Invalid role selected" });
   }
 
-  // First check if user exists
-  db.get("SELECT id FROM users WHERE id = ?", [userId], (err, user) => {
-    if (err) {
-      return res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    // Check if user exists
+    const user = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
     if (!user) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // Update user role and department
-    db.run(
-      "UPDATE users SET role = ?, department = ? WHERE id = ?",
-      [role, department || null, userId],
-      function(err) {
-        if (err) {
-          return res.status(500).json({ success: false, error: err.message });
-        }
+    // Update user role
+    db.prepare("UPDATE users SET role = ?, department = ? WHERE id = ?").run(role, department || null, userId);
 
-        // Add skills if provided
-        if (skills && Array.isArray(skills) && skills.length > 0) {
-          db.run("DELETE FROM user_skills WHERE user_id = ?", [userId], (err) => {
-            if (err) {
-              return res.status(500).json({ success: false, error: err.message });
-            }
-            
-            const stmt = db.prepare("INSERT INTO user_skills (user_id, skill_name, skill_level) VALUES (?, ?, ?)");
-            skills.forEach(skill => {
-              stmt.run([userId, skill.name, skill.level || 'Intermediate']);
-            });
-            stmt.finalize();
-            
-            db.get("SELECT id, name, email, role FROM users WHERE id = ?", [userId], (err, updatedUser) => {
-              if (err) {
-                return res.status(500).json({ success: false, error: err.message });
-              }
-              res.json({ 
-                success: true, 
-                message: "Role setup completed",
-                user: updatedUser
-              });
-            });
-          });
-        } else {
-          db.get("SELECT id, name, email, role FROM users WHERE id = ?", [userId], (err, updatedUser) => {
-            if (err) {
-              return res.status(500).json({ success: false, error: err.message });
-            }
-            res.json({ 
-              success: true, 
-              message: "Role setup completed",
-              user: updatedUser
-            });
-          });
-        }
-      }
-    );
-  });
+    // Get updated user
+    const updatedUser = db.prepare("SELECT id, name, email, role FROM users WHERE id = ?").get(userId);
+    
+    console.log("Role setup successful for user:", updatedUser);
+    res.json({ 
+      success: true, 
+      message: "Role setup completed",
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error("Database error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 module.exports = router;
