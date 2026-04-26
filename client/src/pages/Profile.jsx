@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Layout/Sidebar";
 import api from "../services/api";
 import toast from "react-hot-toast";
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiSave, FiX, FiCode, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiSave, FiX, FiCode, FiPlus, FiTrash2, FiGithub, FiLinkedin } from "react-icons/fi";
 
 const Profile = () => {
   const { userId } = useParams();
@@ -38,7 +38,10 @@ const Profile = () => {
       
       if (res.data.success) {
         setProfile(res.data.profile);
-        setForm(res.data.profile);
+        setForm({
+          ...res.data.profile,
+          skills: res.data.profile.skills || []
+        });
       } else {
         toast.error(res.data.error || "Failed to load profile");
       }
@@ -47,8 +50,10 @@ const Profile = () => {
       if (error.response?.status === 401) {
         logout();
         navigate("/");
+      } else if (error.response?.status === 404) {
+        toast.error("User profile not found");
       } else {
-        toast.error(error.response?.data?.error || "Failed to load profile");
+        toast.error("Failed to load profile");
       }
     } finally {
       setLoading(false);
@@ -58,13 +63,17 @@ const Profile = () => {
   const handleUpdate = async () => {
     setUpdating(true);
     try {
-      await api.put(`/profile/${targetUserId}`, {
+      const updateData = {
         name: form.name,
-        bio: form.bio,
-        phone: form.phone,
-        location: form.location,
+        bio: form.bio || "",
+        phone: form.phone || "",
+        location: form.location || "",
+        github: form.github || "",
+        linkedin: form.linkedin || "",
         skills: form.skills || []
-      });
+      };
+      
+      await api.put(`/profile/${targetUserId}`, updateData);
       toast.success("Profile updated successfully");
       setEditing(false);
       fetchProfile();
@@ -77,7 +86,7 @@ const Profile = () => {
   };
 
   const addSkill = () => {
-    if (newSkill.trim() && !form.skills?.some(s => s.name === newSkill.trim())) {
+    if (newSkill.trim()) {
       const newSkillObj = { name: newSkill.trim(), level: "Intermediate" };
       setForm({ ...form, skills: [...(form.skills || []), newSkillObj] });
       setNewSkill("");
@@ -126,7 +135,6 @@ const Profile = () => {
       <Sidebar />
       <div className="flex-1 ml-64">
         <div className="p-8">
-          {/* Profile Header */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32"></div>
             <div className="px-8 pb-8 relative">
@@ -182,9 +190,7 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Profile Content */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Contact Info */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Contact Information</h2>
               <div className="space-y-3">
@@ -227,9 +233,49 @@ const Profile = () => {
                   </div>
                 )}
               </div>
+              
+              <div className="mt-4 pt-4 border-t">
+                <h3 className="font-semibold text-gray-700 mb-2">Social Links</h3>
+                {editing ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <FiGithub className="text-gray-400" />
+                      <input
+                        type="text"
+                        value={form.github || ""}
+                        onChange={(e) => setForm({ ...form, github: e.target.value })}
+                        placeholder="GitHub URL"
+                        className="flex-1 px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FiLinkedin className="text-gray-400" />
+                      <input
+                        type="text"
+                        value={form.linkedin || ""}
+                        onChange={(e) => setForm({ ...form, linkedin: e.target.value })}
+                        placeholder="LinkedIn URL"
+                        className="flex-1 px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {profile.github && (
+                      <a href={profile.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
+                        <FiGithub /> GitHub
+                      </a>
+                    )}
+                    {profile.linkedin && (
+                      <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
+                        <FiLinkedin /> LinkedIn
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Skills Section */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <FiCode /> Skills & Expertise

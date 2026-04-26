@@ -14,15 +14,15 @@ const RoleSetup = () => {
   const [currentSkill, setCurrentSkill] = useState("");
 
   useEffect(() => {
-    // Check if user already has a role
-    if (user?.role && user.role !== "member") {
-      navigate("/dashboard");
-    }
-    
-    // Check if token exists
     const token = localStorage.getItem("token");
     if (!token) {
       navigate("/");
+      return;
+    }
+    
+    // If user already has a role, redirect to dashboard
+    if (user?.role && user.role !== "member") {
+      navigate("/dashboard");
     }
   }, [user, navigate]);
 
@@ -57,10 +57,12 @@ const RoleSetup = () => {
       const token = localStorage.getItem("token");
       console.log("Setting up role with token:", token ? "Present" : "Missing");
       
+      const skillObjects = skills.map(s => ({ name: s, level: "Intermediate" }));
+      
       const response = await api.post("/profile/setup-role", {
         role: selectedRole,
         department: department,
-        skills: skills.map(s => ({ name: s, level: "Intermediate" }))
+        skills: skillObjects
       });
       
       console.log("Setup response:", response.data);
@@ -105,7 +107,6 @@ const RoleSetup = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Role Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Your Role *
@@ -113,7 +114,7 @@ const RoleSetup = () => {
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
- className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               required
             >
               <option value="">Select a role</option>
@@ -123,7 +124,6 @@ const RoleSetup = () => {
             </select>
           </div>
 
-          {/* Department */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Department
@@ -137,7 +137,6 @@ const RoleSetup = () => {
             />
           </div>
 
-          {/* Skills */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Skills & Technologies
@@ -146,7 +145,7 @@ const RoleSetup = () => {
               <input
                 type="text"
                 value={currentSkill}
- onChange={(e) => setCurrentSkill(e.target.value)}
+                onChange={(e) => setCurrentSkill(e.target.value)}
                 placeholder="e.g., React, Node.js, Python"
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 onKeyPress={(e) => e.key === 'Enter' && addSkill()}
