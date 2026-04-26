@@ -1,213 +1,134 @@
 const db = require("../config/db");
 
-// @desc    Create story (Only Project Owner)
-// @route   POST /api/stories
-exports.createStory = (req, res) => {
-  const { project_id, title, description, status } = req.body;
-  const userId = req.user.id;
-
-  console.log("📝 Creating story for project:", project_id);
-
-  // Verify user is project owner
-  db.get(
-    "SELECT created_by FROM projects WHERE id = ?",
-    [project_id],
-    (err, project) => {
-      if (err) {
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      if (!project) {
-        return res.status(404).json({ success: false, error: "Project not found" });
-      }
-      
-      // Check if user is project owner
-      if (project.created_by !== userId) {
-        return res.status(403).json({ 
-          success: false, 
-          error: "Only the Product Owner can create stories" 
-        });
-      }
-
-      // Create story
-      db.run(
-        "INSERT INTO stories (project_id, title, description, status, created_by) VALUES (?, ?, ?, ?, ?)",
-        [project_id, title, description || "", status || "To Do", userId],
-        function (err) {
-          if (err) {
-            console.error("❌ Story creation error:", err.message);
-            return res.status(500).json({ success: false, error: err.message });
-          }
-
-          console.log("✅ Story created with ID:", this.lastID);
-          res.status(201).json({
-            success: true,
-            message: "Story created successfully",
-            story: { 
-              id: this.lastID, 
-              project_id, 
-              title, 
-              description, 
-              status 
-            }
-          });
-        }
-      );
-    }
-  );
-};
-
-// @desc    Get stories by project (Anyone in team can view)
-// @route   GET /api/stories/project/:projectId
+// Get stories by project with tasks
 exports.getStoriesByProject = (req, res) => {
   const { projectId } = req.params;
-  const userId = req.user.id;
-  const userEmail = req.user.email;
 
-  // Check if user has access to project
-  db.get(
-    `SELECT id FROM projects 
-     WHERE id = ? AND (created_by = ? OR id IN (
-       SELECT project_id FROM team_members WHERE project_id = ? AND user_email = ?
-     ))`,
-    [projectId, userId, projectId, userEmail],
-    (err, project) => {
-      if (err) {
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      if (!project) {
-        return res.status(403).json({ 
-          success: false, 
-          error: "You don't have access to this project" 
-        });
-      }
+  console.log("Fetching stories for project:", projectId);
 
-      db.all(
-        "SELECT * FROM stories WHERE project_id = ? ORDER BY created_at DESC",
-        [projectId],
-        (err, rows) => {
-          if (err) {
-            return res.status(500).json({ success: false, error: err.message });
-          }
-          res.json({ success: true, stories: rows || [] });
-        }
-      );
+  try {
+    const stories = db.prepare(`
+      SELECT * FROM stories WHERE project_id = ? ORDER BY created_at DESC
+    `).all(projectId);
+    
+    // Get tasks for each story
+    for (const story of stories) {
+      const tasks = db.prepare(`
+        SELECT id, title, status, assignee, deadline 
+        FROM tasks WHERE story_id = ? 
+        ORDER BY deadline ASC
+      `).all(story.id);
+      
+      story.tasks = tasks || [];
+      story.taskCount = tasks.length;
+      story.completedTasks = tasks.filter(t => t.status === "Done").length;
     }
-  );
+    
+    console.log(`Found ${stories.length} stories with tasks`);
+    res.json({ success: true, stories: stories || [] });
+  } catch (err) {
+    console.error("Error fetching stories:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// @desc    Get single story with tasks (Anyone in team can view)
-// @route   GET /api/stories/:id
+// Get single story with tasks
 exports.getStoryById = (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
-  const userEmail = req.user.email;
 
-  db.get(
-    `SELECT s.*, p.created_by as project_owner 
-     FROM stories s 
-     JOIN projects p ON s.project_id = p.id 
-     WHERE s.id = ? AND (p.created_by = ? OR p.id IN (
-       SELECT project_id FROM team_members WHERE project_id = p.id AND user_email = ?
-     ))`,
-    [id, userId, userEmail],
-    (err, story) => {
-      if (err) {
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      if (!story) {
-        return res.status(404).json({ success: false, error: "Story not found" });
-      }
+  console.log("Fetching story details:", id);
 
-      db.all("SELECT * FROM tasks WHERE story_id = ? ORDER BY deadline ASC", [id], (err, tasks) => {
-        if (err) {
-          return res.status(500).json({ success: false, error: err.message });
-        }
-        res.json({ success: true, story, tasks: tasks || [] });
-      });
+  try {
+    const story = db.prepare(`
+      SELECT s.*, p.title as project_title, p.id as project_id
+      FROM stories s
+      JOIN projects p ON s.project_id = p.id
+      WHERE s.id = ?
+    `).get(id);
+    
+    if (!story) {
+      return res.status(404).json({ success: false, error: "Story not found" });
     }
-  );
+    
+    const tasks = db.prepare(`
+      SELECT * FROM tasks WHERE story_id = ? ORDER BY deadline ASC
+    `).all(id);
+    
+    story.tasks = tasks || [];
+    story.taskCount = tasks.length;
+    story.completedTasks = tasks.filter(t => t.status === "Done").length;
+    
+    res.json({ success: true, story });
+  } catch (err) {
+    console.error("Error fetching story:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// @desc    Update story (Only Project Owner)
-// @route   PUT /api/stories/:id
+// Create story
+exports.createStory = (req, res) => {
+  const { project_id, title, description, status } = req.body;
+
+  if (!project_id || !title) {
+    return res.status(400).json({ success: false, error: "Project ID and title are required" });
+  }
+
+  try {
+    const result = db.prepare(`
+      INSERT INTO stories (project_id, title, description, status) 
+      VALUES (?, ?, ?, ?)
+    `).run(project_id, title, description || "", status || "To Do");
+    
+    console.log("Story created with ID:", result.lastInsertRowid);
+    
+    res.status(201).json({
+      success: true,
+      message: "Story created successfully",
+      story: { 
+        id: result.lastInsertRowid, 
+        project_id, 
+        title, 
+        description, 
+        status: status || "To Do",
+        tasks: [],
+        taskCount: 0,
+        completedTasks: 0
+      }
+    });
+  } catch (err) {
+    console.error("Error creating story:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// Update story
 exports.updateStory = (req, res) => {
   const { id } = req.params;
   const { title, description, status } = req.body;
-  const userId = req.user.id;
 
-  db.get(
-    `SELECT s.*, p.created_by as project_owner 
-     FROM stories s 
-     JOIN projects p ON s.project_id = p.id 
-     WHERE s.id = ?`,
-    [id],
-    (err, story) => {
-      if (err) {
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      if (!story) {
-        return res.status(404).json({ success: false, error: "Story not found" });
-      }
-      
-      if (story.project_owner !== userId) {
-        return res.status(403).json({ 
-          success: false, 
-          error: "Only the Product Owner can update stories" 
-        });
-      }
-
-      db.run(
-        `UPDATE stories 
-         SET title = COALESCE(?, title), 
-             description = COALESCE(?, description), 
-             status = COALESCE(?, status),
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = ?`,
-        [title, description, status, id],
-        function (err) {
-          if (err) {
-            return res.status(500).json({ success: false, error: err.message });
-          }
-          res.json({ success: true, message: "Story updated successfully" });
-        }
-      );
-    }
-  );
+  try {
+    db.prepare(`
+      UPDATE stories SET title = ?, description = ?, status = ? WHERE id = ?
+    `).run(title, description, status, id);
+    
+    res.json({ success: true, message: "Story updated successfully" });
+  } catch (err) {
+    console.error("Error updating story:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// @desc    Delete story (Only Project Owner)
-// @route   DELETE /api/stories/:id
+// Delete story
 exports.deleteStory = (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
 
-  db.get(
-    `SELECT s.*, p.created_by as project_owner 
-     FROM stories s 
-     JOIN projects p ON s.project_id = p.id 
-     WHERE s.id = ?`,
-    [id],
-    (err, story) => {
-      if (err) {
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      if (!story) {
-        return res.status(404).json({ success: false, error: "Story not found" });
-      }
-      
-      if (story.project_owner !== userId) {
-        return res.status(403).json({ 
-          success: false, 
-          error: "Only the Product Owner can delete stories" 
-        });
-      }
-
-      db.run("DELETE FROM stories WHERE id = ?", [id], function (err) {
-        if (err) {
-          return res.status(500).json({ success: false, error: err.message });
-        }
-        res.json({ success: true, message: "Story deleted successfully" });
-      });
-    }
-  );
+  try {
+    db.prepare(`DELETE FROM stories WHERE id = ?`).run(id);
+    res.json({ success: true, message: "Story deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting story:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
+
+module.exports = exports;

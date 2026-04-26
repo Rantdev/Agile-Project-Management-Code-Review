@@ -19,16 +19,20 @@ const ProjectDetails = () => {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [projectRes, storiesRes] = await Promise.all([
         api.get(`/projects/${id}`),
-        api.get(`/stories/project/${id}`),
+        api.get(`/stories/project/${id}`)
       ]);
+      
       setProject(projectRes.data.project);
       setStories(storiesRes.data.stories || []);
+      console.log("Stories with tasks:", storiesRes.data.stories);
       
       const currentUserId = JSON.parse(localStorage.getItem("user") || "{}").id;
       setIsOwner(projectRes.data.project.created_by === currentUserId);
     } catch (error) {
+      console.error("Failed to load project details:", error);
       toast.error("Failed to load project details");
     } finally {
       setLoading(false);
@@ -41,6 +45,11 @@ const ProjectDetails = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.title.trim()) {
+      toast.error("Story title is required");
+      return;
+    }
+
     try {
       await api.post("/stories", { ...form, project_id: id });
       toast.success("Story created successfully");
@@ -48,6 +57,7 @@ const ProjectDetails = () => {
       setForm({ title: "", description: "", status: "To Do" });
       fetchData();
     } catch (error) {
+      console.error("Failed to create story:", error);
       toast.error(error.response?.data?.error || "Failed to create story");
     }
   };
@@ -58,6 +68,20 @@ const ProjectDetails = () => {
         <Sidebar />
         <div className="flex-1 ml-64 flex justify-center items-center min-h-screen">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="flex">
+        <Sidebar />
+        <div className="flex-1 ml-64 p-8">
+          <div className="text-center py-12">
+            <p className="text-gray-500">Project not found</p>
+            <Link to="/projects" className="text-blue-600 mt-4 inline-block">Back to Projects</Link>
+          </div>
         </div>
       </div>
     );
@@ -168,7 +192,7 @@ const ProjectDetails = () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Create Story Modal */}
       {showModal && isOwner && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
@@ -184,7 +208,7 @@ const ProjectDetails = () => {
                 placeholder="Story Title *"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 required
               />
               <textarea
@@ -192,22 +216,22 @@ const ProjectDetails = () => {
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows="3"
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
               />
               <select
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               >
                 <option>To Do</option>
                 <option>In Progress</option>
                 <option>Done</option>
               </select>
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
                   Cancel
                 </button>
-                <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-xl hover:from-blue-700 hover:to-purple-700">
+                <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-xl hover:from-blue-700 hover:to-purple-700 transition">
                   Create Story
                 </button>
               </div>
