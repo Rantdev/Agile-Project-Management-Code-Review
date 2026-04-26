@@ -4,32 +4,31 @@ import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Layout/Sidebar";
 import api from "../services/api";
 import toast from "react-hot-toast";
-import { 
-  FiUser, FiMail, FiPhone, FiMapPin, FiGithub, FiLinkedin, 
-  FiEdit2, FiSave, FiX, FiCode, FiBriefcase, FiPlus, FiTrash2
-} from "react-icons/fi";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiSave, FiX, FiCode, FiPlus, FiTrash2 } from "react-icons/fi";
 
 const Profile = () => {
   const { userId } = useParams();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
-  const [newSkill, setNewSkill] = useState({ name: "", level: "Intermediate" });
+  const [newSkill, setNewSkill] = useState("");
   const [updating, setUpdating] = useState(false);
 
-  const skillLevels = ["Beginner", "Intermediate", "Advanced", "Expert"];
   const targetUserId = userId || user?.id;
 
   useEffect(() => {
+    if (!user) {
+      navigate("/");
+      return;
+    }
+    
     if (targetUserId) {
       fetchProfile();
-    } else {
-      setLoading(false);
     }
-  }, [targetUserId]);
+  }, [targetUserId, user]);
 
   const fetchProfile = async () => {
     try {
@@ -45,7 +44,12 @@ const Profile = () => {
       }
     } catch (error) {
       console.error("Profile fetch error:", error);
-      toast.error(error.response?.data?.error || "Failed to load profile");
+      if (error.response?.status === 401) {
+        logout();
+        navigate("/");
+      } else {
+        toast.error(error.response?.data?.error || "Failed to load profile");
+      }
     } finally {
       setLoading(false);
     }
@@ -59,9 +63,7 @@ const Profile = () => {
         bio: form.bio,
         phone: form.phone,
         location: form.location,
-        github: form.github,
-        linkedin: form.linkedin,
-        skills: form.skills
+        skills: form.skills || []
       });
       toast.success("Profile updated successfully");
       setEditing(false);
@@ -74,29 +76,18 @@ const Profile = () => {
     }
   };
 
-  const addSkill = async () => {
-    if (!newSkill.name.trim()) {
-      toast.error("Please enter a skill name");
-      return;
-    }
-
-    try {
-      const updatedSkills = [...(form.skills || []), { ...newSkill }];
-      setForm({ ...form, skills: updatedSkills });
-      setNewSkill({ name: "", level: "Intermediate" });
-      toast.success("Skill added");
-    } catch (error) {
-      toast.error("Failed to add skill");
+  const addSkill = () => {
+    if (newSkill.trim() && !form.skills?.some(s => s.name === newSkill.trim())) {
+      const newSkillObj = { name: newSkill.trim(), level: "Intermediate" };
+      setForm({ ...form, skills: [...(form.skills || []), newSkillObj] });
+      setNewSkill("");
     }
   };
 
   const removeSkill = (index) => {
     const updatedSkills = form.skills.filter((_, i) => i !== index);
     setForm({ ...form, skills: updatedSkills });
-    toast.success("Skill removed");
   };
-
-  const isOwnProfile = !userId || userId == user?.id;
 
   if (loading) {
     return (
@@ -130,18 +121,6 @@ const Profile = () => {
     );
   }
 
-  const roleColors = {
-    "UI Developer": "bg-purple-100 text-purple-800",
-    "Frontend Developer": "bg-blue-100 text-blue-800",
-    "Backend Developer": "bg-green-100 text-green-800",
-    "Full Stack Developer": "bg-indigo-100 text-indigo-800",
-    "Tester": "bg-orange-100 text-orange-800",
-    "DevOps": "bg-cyan-100 text-cyan-800",
-    "Product Owner": "bg-pink-100 text-pink-800",
-    "Scrum Master": "bg-red-100 text-red-800",
-    "Designer": "bg-yellow-100 text-yellow-800"
-  };
-
   return (
     <div className="flex">
       <Sidebar />
@@ -157,46 +136,43 @@ const Profile = () => {
                     {profile.name?.charAt(0).toUpperCase()}
                   </div>
                   <div className="ml-4">
-                    <h1 className="text-2xl font-bold text-gray-800">
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={form.name || ""}
-                          onChange={(e) => setForm({ ...form, name: e.target.value })}
-                          className="border rounded px-2 py-1 text-xl"
-                        />
-                      ) : (
-                        profile.name
-                      )}
-                    </h1>
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mt-1 ${roleColors[profile.role] || "bg-gray-100 text-gray-800"}`}>
+                    {editing ? (
+                      <input
+                        type="text"
+                        value={form.name || ""}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        className="border rounded px-2 py-1 text-xl font-bold"
+                      />
+                    ) : (
+                      <h1 className="text-2xl font-bold text-gray-800">{profile.name}</h1>
+                    )}
+                    <span className="inline-block px-3 py-1 rounded-full text-sm font-medium mt-1 bg-blue-100 text-blue-800">
                       {profile.role || "Team Member"}
                     </span>
                   </div>
                 </div>
-                {isOwnProfile && !editing && (
+                {!editing ? (
                   <button
                     onClick={() => setEditing(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     <FiEdit2 /> Edit Profile
                   </button>
-                )}
-                {editing && (
+                ) : (
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
                         setEditing(false);
                         setForm(profile);
                       }}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                     >
                       <FiX /> Cancel
                     </button>
                     <button
                       onClick={handleUpdate}
                       disabled={updating}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                     >
                       <FiSave /> {updating ? "Saving..." : "Save"}
                     </button>
@@ -207,7 +183,7 @@ const Profile = () => {
           </div>
 
           {/* Profile Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Contact Info */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Contact Information</h2>
@@ -251,83 +227,6 @@ const Profile = () => {
                   </div>
                 )}
               </div>
-
-              {(profile.department || editing) && (
-                <div className="mt-4 pt-4 border-t">
-                  <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <FiBriefcase /> Department
-                  </h3>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={form.department || ""}
-                      onChange={(e) => setForm({ ...form, department: e.target.value })}
-                      placeholder="Department"
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  ) : (
-                    <p className="text-gray-600">{profile.department}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Social Links */}
-              <div className="mt-4 pt-4 border-t">
-                <h3 className="font-semibold text-gray-700 mb-2">Social Links</h3>
-                {editing ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <FiGithub className="text-gray-400" />
-                      <input
-                        type="text"
-                        value={form.github || ""}
-                        onChange={(e) => setForm({ ...form, github: e.target.value })}
-                        placeholder="GitHub URL"
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <FiLinkedin className="text-gray-400" />
-                      <input
-                        type="text"
-                        value={form.linkedin || ""}
-                        onChange={(e) => setForm({ ...form, linkedin: e.target.value })}
-                        placeholder="LinkedIn URL"
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {profile.github && (
-                      <a href={profile.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
-                        <FiGithub /> GitHub
-                      </a>
-                    )}
-                    {profile.linkedin && (
-                      <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
-                        <FiLinkedin /> LinkedIn
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Bio */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">About</h2>
-              {editing ? (
-                <textarea
-                  value={form.bio || ""}
-                  onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                  placeholder="Tell us about yourself..."
-                  rows="4"
-                  className="w-full px-3 py-2 border rounded-lg resize-none"
-                />
-              ) : (
-                <p className="text-gray-600">{profile.bio || "No bio added yet"}</p>
-              )}
             </div>
 
             {/* Skills Section */}
@@ -338,23 +237,15 @@ const Profile = () => {
               
               {editing && (
                 <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex gap-2 mb-2">
+                  <div className="flex gap-2">
                     <input
                       type="text"
-                      value={newSkill.name}
-                      onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
+                      value={newSkill}
+                      onChange={(e) => setNewSkill(e.target.value)}
                       placeholder="Skill name (e.g., React)"
                       className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                      onKeyPress={(e) => e.key === 'Enter' && addSkill()}
                     />
-                    <select
-                      value={newSkill.level}
-                      onChange={(e) => setNewSkill({ ...newSkill, level: e.target.value })}
-                      className="px-3 py-2 border rounded-lg text-sm"
-                    >
-                      {skillLevels.map(level => (
-                        <option key={level} value={level}>{level}</option>
-                      ))}
-                    </select>
                     <button
                       onClick={addSkill}
                       className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
