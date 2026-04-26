@@ -1,6 +1,9 @@
 const db = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto"); // ADD THIS LINE
+
+// Rest of your code...
 
 const generateToken = (id, email) => {
   return jwt.sign({ id, email }, process.env.JWT_SECRET, {
@@ -343,6 +346,47 @@ exports.resetPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Reset password error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+// Verify OTP for password reset
+exports.verifyResetOTP = (req, res) => {
+  const { email, otpCode } = req.body;
+
+  if (!email || !otpCode) {
+    return res.status(400).json({ success: false, error: "Email and OTP are required" });
+  }
+
+  try {
+    const now = new Date().toISOString();
+    
+    const resetRecord = db.prepare(`
+      SELECT * FROM password_resets 
+      WHERE email = ? AND otp_code = ? AND is_used = 0 AND expires_at > ?
+    `).get(email.toLowerCase(), otpCode, now);
+
+    if (!resetRecord) {
+      return res.status(400).json({ success: false, error: "Invalid or expired OTP" });
+    }
+
+    // Mark OTP as used
+    db.prepare("UPDATE password_resets SET is_used = 1 WHERE id = ?").run(resetRecord.id);
+
+    // Generate reset token using crypto
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Save reset token
+    db.prepare(`
+      UPDATE password_resets SET reset_token = ? WHERE id = ?
+    `).run(resetToken, resetRecord.id);
+
+    res.json({ 
+      success: true, 
+      message: "OTP verified successfully",
+      resetToken: resetToken
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 };
